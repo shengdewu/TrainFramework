@@ -4,23 +4,33 @@ import os
 package_root = 'engine'
 
 
+def _search_dir(dp, name):
+    py_name = list()
+
+    if os.path.isfile(os.path.join(dp, name)):
+        if name.endswith('.py') and name != '__init__.py':
+            py_name.append('{}.{}'.format('.'.join(dp.split('/')), name[:name.find('.py')]))
+        return py_name
+
+    sdp = os.path.join(dp, name)
+    for sd in os.listdir(sdp):
+        if sd == '__init__.py' or sd.find('egg-info') != -1:
+            continue
+        if not os.path.isfile(os.path.join(dp, name, sd)):
+            py_name.extend(_search_dir(sdp, sd))
+        else:
+            if sd.endswith('.py'):
+                py_name.append('{}.{}'.format('.'.join(sdp.split('/')), sd[:sd.find('.py')]))
+
+    return py_name
+
+
 def compose_py_model():
     py_model = list()
     for d in os.listdir(package_root):
         if d == '__init__.py' or d.find('egg-info') != -1:
             continue
-        if os.path.isfile(os.path.join(package_root, d)):
-            if d.endswith('.py'):
-                py_model.append('{}.{}'.format(package_root, d[:d.find('.py')]))
-            continue
-        for sd in os.listdir(os.path.join(package_root, d)):
-            if sd == '__init__.py':
-                continue
-            if not os.path.isfile(os.path.join(package_root, d, sd)):
-                raise FileNotFoundError(os.path.join(package_root, d, sd))
-            if not sd.endswith('.py'):
-                continue
-            py_model.append('{}.{}.{}'.format(package_root, d, sd[:sd.find('.py')]))
+        py_model.extend(_search_dir(package_root, d))
     print(py_model)
     return py_model
 
