@@ -36,16 +36,11 @@ def compose_py_model():
 
 
 setuptools.setup(
-    name=package_root,
+    name='{}_frame'.format(package_root),
     version='1.0.0',
     author='shengdewu',
     author_email='786222104@qq.com',
     description='train engine for pytorch',
-    install_requires=[
-        "fvcore == 0.1.5.post20210825",
-        "Pillow == 8.1.2",
-        "numpy == 1.16.0"
-    ],
     classifiers=[
         "programing language :: python ::3",
         "pytorch version :: 1.7+"
