@@ -1,6 +1,6 @@
 import abc
 import logging
-from engine.model.model import BaseModel
+from engine.model.base_model import BaseModel
 import engine.checkpoint.checkpoint_manager as engine_checkpoint_manager
 import engine.comm as comm
 

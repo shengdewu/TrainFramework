@@ -3,7 +3,7 @@ from typing import Optional
 from fvcore.common.file_io import PathManager
 from engine.log.logger import setup_logger
 import engine.comm as comm
-from engine.model.model import BaseModel
+from engine.model.base_model import BaseModel
 
 
 class CheckPointerManager:

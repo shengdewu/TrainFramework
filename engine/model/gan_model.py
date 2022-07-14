@@ -1,20 +1,18 @@
 import abc
+from engine.model.base_model import BaseModel
 from typing import Iterator
 import torch
 import engine.checkpoint.functional as checkpoint_f
 import logging
 
 
-class BaseGanModel(abc.ABC):
+class BaseGanModel(BaseModel):
     def __init__(self, cfg):
-        self.g_model = self.create_g_model(cfg).to(cfg.MODEL.DEVICE)
-        self.g_optimizer = self.create_g_optimizer(cfg, self.g_model.parameters())
-        self.g_scheduler = self.create_g_scheduler(cfg, self.g_optimizer)
+        super(BaseGanModel, self).__init__(cfg)
 
         self.d_model = self.create_d_model(cfg).to(cfg.MODEL.DEVICE)
         self.d_optimizer = self.create_d_optimizer(cfg, self.d_model.parameters())
         self.d_scheduler = self.create_g_scheduler(cfg, self.d_optimizer)
-        self.default_log_name = cfg.OUTPUT_LOG_NAME
         return
 
     @abc.abstractmethod
@@ -22,42 +20,12 @@ class BaseGanModel(abc.ABC):
         raise NotImplemented('the create_d_optimizer must be implement')
 
     @abc.abstractmethod
-    def create_g_optimizer(self, cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
-        raise NotImplemented('the create_g_optimizer must be implement')
-
-    @abc.abstractmethod
     def create_d_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
         raise NotImplemented('the create_d_scheduler must be implement')
 
     @abc.abstractmethod
-    def create_g_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
-        raise NotImplemented('the create_g_scheduler must be implement')
-
-    @abc.abstractmethod
-    def create_g_model(self, cfg) -> torch.nn.Module:
-        raise NotImplemented('the create_g_model must be implement')
-
-    @abc.abstractmethod
     def create_d_model(self, cfg) -> torch.nn.Module:
         raise NotImplemented('the create_d_model must be implement')
-
-    @abc.abstractmethod
-    def run_step(self, data, *, epoch=None, **kwargs):
-        """
-        :param data: type is dict
-        :param epoch:
-        :param kwargs: another args
-        :return:
-        """
-        raise NotImplemented('the run_step must be implement')
-
-    @abc.abstractmethod
-    def generator(self, data):
-        """
-        :param data: type is dict
-        :return:
-        """
-        raise NotImplemented('the generator must be implement')
 
     def __call__(self, data, *, epoch=None, **kwargs):
         """
@@ -85,19 +53,6 @@ class BaseGanModel(abc.ABC):
     def disable_train(self):
         self.g_model.eval()
         self.d_model.eval()
-        return
-
-    def get_state_dict(self):
-        state_dict = dict()
-        state_dict['model'] = checkpoint_f.get_model_state_dict(self.g_model)
-        return state_dict
-
-    def load_state_dict(self, state_dict: dict):
-        """
-        :param state_dict: type is dict
-        :return: 
-        """""
-        checkpoint_f.load_model_state_dict(self.g_model, state_dict['model'], log_name=self.default_log_name)
         return
 
     def get_addition_state_dict(self):
