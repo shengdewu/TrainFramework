@@ -3,6 +3,8 @@ import logging
 from engine.model.base_model import BaseModel
 import engine.checkpoint.checkpoint_manager as engine_checkpoint_manager
 import engine.comm as comm
+import engine.data.data_loader as engine_data_loader
+from torch.utils.data import Dataset
 
 
 class BaseTrainer(abc.ABC):
@@ -32,6 +34,7 @@ class BaseTrainer(abc.ABC):
             self.model.enable_train()
         """
         self.default_log_name = cfg.OUTPUT_LOG_NAME
+
         self.model = self.create_model(cfg)
         self.model.enable_train()
         self.model.enable_distribute(cfg)
@@ -42,21 +45,63 @@ class BaseTrainer(abc.ABC):
                                                                         max_keep=cfg.SOLVER.MAX_KEEP,
                                                                         file_prefix=cfg.MODEL.ARCH,
                                                                         save_to_disk=comm.is_main_process())
+        self.set_collate_fn()
+
+        train_dataset, valid_dataset = self.create_dataset(cfg)
+        self.collate_fn = None
+        if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
+            train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
+                                                                                          batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                                          rank=cfg.MODEL.TRAINER.GLOBAL_RANK,
+                                                                                          world_size=cfg.MODEL.TRAINER.WORLD_SIZE,
+                                                                                          num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                                                          collate_fn=self.collate_fn)
+        else:
+            train_data_loader = engine_data_loader.create_iterable_data_loader(train_dataset,
+                                                                               batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                               num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                                               collate_fn=self.collate_fn)
+
+        self.test_data_loader = engine_data_loader.create_data_loader(valid_dataset, cfg.SOLVER.TEST_PER_BATCH, cfg.DATALOADER.NUM_WORKERS, collate_fn=self.collate_fn)
 
         self.start_iter = 0
         self.model_path = cfg.MODEL.WEIGHTS
         self.device = cfg.MODEL.DEVICE
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.output = cfg.OUTPUT_DIR
+        self.iter_train_loader = iter(train_data_loader)
+        return
+
+    @abc.abstractmethod
+    def create_dataset(self, cfg) -> (Dataset, Dataset):
+        raise NotImplemented('the create_dataset must be implement')
+
+    def set_collate_fn(self):
+        self.collate_fn = None
         return
 
     @abc.abstractmethod
     def create_model(self, cfg) -> BaseModel:
         raise NotImplemented('the create_model must be implement')
 
-    @abc.abstractmethod
     def loop(self):
-        raise NotImplemented('the loop must be implement')
+        self.model.enable_train()
+
+        for epoch in range(self.start_iter, self.max_iter):
+            data = next(self.iter_train_loader)
+
+            loss_dict = self.model({'input': data[0], 'gt': data[1]}, epoch=epoch)
+            self.checkpoint.save(self.model, epoch)
+            self.run_after(epoch, loss_dict)
+
+        self.checkpoint.save(self.model, self.max_iter)
+
+        return
+
+    def run_after(self, epoch, loss_dict):
+        if int(epoch + 0.5) % self.checkpoint.check_period == 0:
+            logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
+        return
 
     def resume_or_load(self, resume=False):
         """

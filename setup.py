@@ -1,5 +1,6 @@
 import setuptools
 import os
+import sys
 
 package_root = 'engine'
 
@@ -35,9 +36,13 @@ def compose_py_model():
     return py_model
 
 
+def get_version() -> str:
+    return '2.0.0'
+
+
 setuptools.setup(
     name='{}_frame'.format(package_root),
-    version='1.0.0',
+    version=get_version(),
     author='shengdewu',
     author_email='786222104@qq.com',
     description='train engine for pytorch',
