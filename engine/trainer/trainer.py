@@ -43,12 +43,12 @@ class BaseTrainer(abc.ABC):
                                                                         save_dir=cfg.OUTPUT_DIR,
                                                                         check_period=cfg.SOLVER.CHECKPOINT_PERIOD,
                                                                         max_keep=cfg.SOLVER.MAX_KEEP,
-                                                                        file_prefix=cfg.MODEL.ARCH,
+                                                                        file_prefix=self.model.g_model.__class__.__name__,
                                                                         save_to_disk=comm.is_main_process())
-        self.set_collate_fn()
-
-        train_dataset, valid_dataset = self.create_dataset(cfg)
         self.collate_fn = None
+
+        self.set_collate_fn()
+        train_dataset, valid_dataset = self.create_dataset(cfg)
         if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
             train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
                                                                                           batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
@@ -90,7 +90,7 @@ class BaseTrainer(abc.ABC):
         for epoch in range(self.start_iter, self.max_iter):
             data = next(self.iter_train_loader)
 
-            loss_dict = self.model({'input': data[0], 'gt': data[1]}, epoch=epoch)
+            loss_dict = self.model(data, epoch=epoch)
             self.checkpoint.save(self.model, epoch)
             self.run_after(epoch, loss_dict)
 

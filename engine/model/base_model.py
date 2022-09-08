@@ -36,6 +36,8 @@ class BaseModel(abc.ABC):
         self.g_optimizer = self.create_g_optimizer(cfg, self.g_model.parameters())
         self.g_scheduler = self.create_g_scheduler(cfg, self.g_optimizer)
         self.default_log_name = cfg.OUTPUT_LOG_NAME
+        self.device = cfg.MODEL.DEVICE
+        logging.getLogger(self.default_log_name).info(f'create {self.__class__.__name__}')
         return
 
     @abc.abstractmethod
