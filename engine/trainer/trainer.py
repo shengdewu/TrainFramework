@@ -84,21 +84,29 @@ class BaseTrainer(abc.ABC):
     def create_model(self, cfg) -> BaseModel:
         raise NotImplemented('the create_model must be implement')
 
+    def before_loop(self):
+        pass
+
     def loop(self):
         self.model.enable_train()
 
+        self.before_loop()
+
         for epoch in range(self.start_iter, self.max_iter):
             data = next(self.iter_train_loader)
-
             loss_dict = self.model(data, epoch=epoch)
-            self.checkpoint.save(self.model, epoch)
-            self.run_after(epoch, loss_dict)
+            self.iterate_after(epoch, loss_dict)
 
         self.checkpoint.save(self.model, self.max_iter)
 
+        self.after_loop()
         return
 
-    def run_after(self, epoch, loss_dict):
+    def after_loop(self):
+        pass
+
+    def iterate_after(self, epoch, loss_dict):
+        self.checkpoint.save(self.model, epoch)
         if int(epoch + 0.5) % self.checkpoint.check_period == 0:
             logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
         return
