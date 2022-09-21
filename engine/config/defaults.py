@@ -33,8 +33,6 @@ _C.SOLVER.CLIP_GRADIENTS.CLIP_TYPE = "value"
 _C.SOLVER.CLIP_GRADIENTS.CLIP_VALUE = 1.0
 _C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
 _C.SOLVER.CLIP_GRADIENTS.GROUP = False
-_C.SOLVER.LOSS = CfgNode(new_allowed=True)
-
 
 # ---------------------------------------------------------------------------- #
 # data loader config
@@ -42,10 +40,6 @@ _C.SOLVER.LOSS = CfgNode(new_allowed=True)
 _C.DATALOADER = CfgNode(new_allowed=True)
 _C.DATALOADER.NUM_WORKERS = 4
 
-# -----------------------------------------------------------------------------
-# INPUT
-# -----------------------------------------------------------------------------
-_C.INPUT = CfgNode(new_allowed=True)
 
 _C.OUTPUT_DIR = ''
 _C.OUTPUT_LOG_NAME = __name__
