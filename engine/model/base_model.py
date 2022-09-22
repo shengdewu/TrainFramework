@@ -1,8 +1,10 @@
 import abc
 from typing import Iterator
 import torch
+from engine.slover import build_optimizer_with_gradient_clipping, build_lr_scheduler
 import engine.checkpoint.functional as checkpoint_f
 import logging
+from .import_optimizer import import_optimizer
 
 
 class BaseModel(abc.ABC):
@@ -40,13 +42,18 @@ class BaseModel(abc.ABC):
         logging.getLogger(self.default_log_name).info(f'create {self.__class__.__name__}')
         return
 
-    @abc.abstractmethod
     def create_g_optimizer(self, cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
-        raise NotImplemented('the create_optimizer must be implement')
+        op_type = cfg.SOLVER.OPTIMIZER.GENERATOR.TYPE
+        params = dict()
+        for key, param in cfg.SOLVER.OPTIMIZER.GENERATOR.PARAMS.items():
+            params[key.lower()] = param
 
-    @abc.abstractmethod
+        cls = import_optimizer(op_type)
+
+        return build_optimizer_with_gradient_clipping(cfg, cls)(parameters, **params)
+
     def create_g_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
-        raise NotImplemented('the create_scheduler must be implement')
+        return build_lr_scheduler(cfg, optimizer)
 
     @abc.abstractmethod
     def create_g_model(self, cfg) -> torch.nn.Module:
