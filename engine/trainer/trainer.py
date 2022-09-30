@@ -5,6 +5,7 @@ import engine.checkpoint.checkpoint_manager as engine_checkpoint_manager
 import engine.comm as comm
 import engine.data.data_loader as engine_data_loader
 from torch.utils.data import Dataset
+import torch
 
 
 class BaseTrainer(abc.ABC):
@@ -39,11 +40,15 @@ class BaseTrainer(abc.ABC):
         self.model.enable_train()
         self.model.enable_distribute(cfg)
 
+        model_name = self.model.g_model.__class__.__name__
+        if isinstance(self.model.g_model, (torch.nn.parallel.DistributedDataParallel, torch.nn.parallel.DataParallel)):
+            model_name = self.model.g_model.module.__class__.__name__
+
         self.checkpoint = engine_checkpoint_manager.CheckPointerManager(max_iter=cfg.SOLVER.MAX_ITER,
                                                                         save_dir=cfg.OUTPUT_DIR,
                                                                         check_period=cfg.SOLVER.CHECKPOINT_PERIOD,
                                                                         max_keep=cfg.SOLVER.MAX_KEEP,
-                                                                        file_prefix=self.model.g_model.__class__.__name__,
+                                                                        file_prefix=model_name,
                                                                         save_to_disk=comm.is_main_process())
         self.collate_fn = None
 
