@@ -1,5 +1,6 @@
 import abc
 from typing import Iterator
+from yacs.config import CfgNode
 import torch
 from engine.slover import build_optimizer_with_gradient_clipping, build_lr_scheduler
 import engine.checkpoint.functional as checkpoint_f
@@ -39,7 +40,9 @@ class BaseModel(abc.ABC):
         self.g_scheduler = self.create_g_scheduler(cfg, self.g_optimizer)
         self.default_log_name = cfg.OUTPUT_LOG_NAME
         self.device = cfg.MODEL.DEVICE
-        logging.getLogger(self.default_log_name).info(f'create {self.__class__.__name__}')
+        assert isinstance(cfg, CfgNode)
+        self.cfg = cfg.clone()
+        logging.getLogger(self.default_log_name).info('create model {} with {}'.format(self.__class__.__name__, self.g_model))
         return
 
     def create_g_optimizer(self, cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
@@ -118,6 +121,7 @@ class BaseModel(abc.ABC):
         state_dict = dict()
         state_dict['g_optimizer'] = checkpoint_f.get_model_state_dict(self.g_optimizer)
         state_dict['g_scheduler'] = checkpoint_f.get_model_state_dict(self.g_scheduler)
+        state_dict['cfg'] = self.cfg.dump()
         return state_dict
 
     def load_addition_state_dict(self, state_dict: dict):
