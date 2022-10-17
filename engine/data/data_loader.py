@@ -4,7 +4,7 @@ from engine.samplers.distributed_sampler import TrainingSampler
 from engine.data.common import ToIterableDataset
 
 
-def create_iterable_data_loader(dataset, batch_size, num_workers, collate_fn=None):
+def create_iterable_data_loader(dataset, batch_size, num_workers, collate_fn=None, pin_memory=True):
     sampler = TrainingSampler(len(dataset))
     dataset = ToIterableDataset(dataset, sampler)
 
@@ -16,12 +16,12 @@ def create_iterable_data_loader(dataset, batch_size, num_workers, collate_fn=Non
                                         batch_size=batch_size,
                                         shuffle=False,
                                         num_workers=num_workers,
-                                        pin_memory=True,
+                                        pin_memory=pin_memory,
                                         collate_fn=collate_fn,
                                         drop_last=True)
 
 
-def create_distribute_iterable_data_loader(dataset, batch_size, rank, world_size, num_workers, collate_fn=None):
+def create_distribute_iterable_data_loader(dataset, batch_size, rank, world_size, num_workers, collate_fn=None, pin_memory=True):
     sampler = TrainingSampler(len(dataset), rank=rank, world_size=world_size)
     dataset = ToIterableDataset(dataset, sampler)
 
@@ -33,12 +33,12 @@ def create_distribute_iterable_data_loader(dataset, batch_size, rank, world_size
                                         batch_size=batch_size,
                                         shuffle=False,
                                         num_workers=num_workers,
-                                        pin_memory=True,
+                                        pin_memory=pin_memory,
                                         collate_fn=collate_fn,
                                         drop_last=True)
 
 
-def create_data_loader(dataset, batch_size, num_workers, collate_fn=None):
+def create_data_loader(dataset, batch_size, num_workers, collate_fn=None, pin_memory=True):
 
     sampler = torch.utils.data.RandomSampler(dataset)
 
@@ -52,11 +52,11 @@ def create_data_loader(dataset, batch_size, num_workers, collate_fn=None):
                                        sampler=sampler,
                                        num_workers=num_workers,
                                        drop_last=True,
-                                       pin_memory=True,
+                                       pin_memory=pin_memory,
                                        collate_fn=collate_fn)
 
 
-def create_distribute_data_loader(dataset, batch_size, rank, world_size, num_workers, collate_fn=None):
+def create_distribute_data_loader(dataset, batch_size, rank, world_size, num_workers, collate_fn=None, pin_memory=True):
 
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, num_replicas=world_size, rank=rank)
 
@@ -68,7 +68,7 @@ def create_distribute_data_loader(dataset, batch_size, rank, world_size, num_wor
                                        batch_size=batch_size,
                                        shuffle=False,
                                        num_workers=num_workers,
-                                       pin_memory=True,
+                                       pin_memory=pin_memory,
                                        drop_last=True,
                                        sampler=sampler,
                                        collate_fn=collate_fn)

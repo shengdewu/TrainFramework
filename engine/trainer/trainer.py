@@ -54,20 +54,27 @@ class BaseTrainer(abc.ABC):
 
         self.set_collate_fn()
         train_dataset, valid_dataset = self.create_dataset(cfg)
+        pin_memory = cfg.MODEL.DEVICE != 'cpu'
         if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
             train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
                                                                                           batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
                                                                                           rank=cfg.MODEL.TRAINER.GLOBAL_RANK,
                                                                                           world_size=cfg.MODEL.TRAINER.WORLD_SIZE,
                                                                                           num_workers=cfg.DATALOADER.NUM_WORKERS,
-                                                                                          collate_fn=self.collate_fn)
+                                                                                          collate_fn=self.collate_fn,
+                                                                                          pin_memory=pin_memory)
         else:
             train_data_loader = engine_data_loader.create_iterable_data_loader(train_dataset,
                                                                                batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
                                                                                num_workers=cfg.DATALOADER.NUM_WORKERS,
-                                                                               collate_fn=self.collate_fn)
+                                                                               collate_fn=self.collate_fn,
+                                                                               pin_memory=pin_memory)
 
-        self.test_data_loader = engine_data_loader.create_data_loader(valid_dataset, cfg.SOLVER.TEST_PER_BATCH, cfg.DATALOADER.NUM_WORKERS, collate_fn=self.collate_fn)
+        self.test_data_loader = engine_data_loader.create_data_loader(valid_dataset,
+                                                                      cfg.SOLVER.TEST_PER_BATCH,
+                                                                      cfg.DATALOADER.NUM_WORKERS,
+                                                                      collate_fn=self.collate_fn,
+                                                                      pin_memory=pin_memory)
 
         self.start_iter = 0
         self.model_path = cfg.MODEL.WEIGHTS
