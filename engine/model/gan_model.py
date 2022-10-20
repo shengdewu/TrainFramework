@@ -70,6 +70,7 @@ class BaseGanModel(BaseModel):
         state_dict['d_optimizer'] = checkpoint_f.get_model_state_dict(self.d_optimizer)
         state_dict['d_scheduler'] = checkpoint_f.get_model_state_dict(self.d_scheduler)
         state_dict['d_model'] = checkpoint_f.get_model_state_dict(self.d_model)
+        state_dict['cfg'] = self.cfg.dump()
         return state_dict
 
     def load_addition_state_dict(self, state_dict: dict):
