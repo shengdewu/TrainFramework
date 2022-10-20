@@ -95,10 +95,9 @@ class BaseTrainer(abc.ABC):
         pass
 
     def loop(self):
-        self.model.enable_train()
-
         self.before_loop()
 
+        self.model.enable_train()
         for epoch in range(self.start_iter, self.max_iter):
             data = next(self.iter_train_loader)
             loss_dict = self.model(data, epoch=epoch)
