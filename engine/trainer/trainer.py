@@ -29,11 +29,6 @@ class BaseTrainer(abc.ABC):
         model may be by registered use Registry (from fvcore.common.registry import)
     """
     def __init__(self, cfg):
-        """
-        eg:
-            self.model = build_model(cfg)
-            self.model.enable_train()
-        """
         self.default_log_name = cfg.OUTPUT_LOG_NAME
 
         self.model = self.create_model(cfg)
@@ -127,15 +122,6 @@ class BaseTrainer(abc.ABC):
         """
         :param resume:
         :return:
-
-        eg:
-            model_state_dict, addition_state_dict, start_iter = self.checkpoint.resume_or_load(self.model_path, resume)
-            self.start_iter = start_iter
-            if model_state_dict is not None:
-                self.model.load_state_dict(model_state_dict)
-            if addition_state_dict is not None:
-                self.model.load_addition_state_dict(addition_state_dict)
-            logging.getLogger(__name__).info('load model from {}: resume:{} start iter:{}'.format(self.model_path, resume, self.start_iter))
         """
         model_state_dict, addition_state_dict, start_iter = self.checkpoint.resume_or_load(self.model_path, resume)
         self.start_iter = start_iter
