@@ -11,13 +11,13 @@ from abc import ABC
 import abc
 import os
 import engine.collect_env as collect_env
-from engine.trainer.build import build_trainer
 
 
 class BaseScheduler(ABC):
     def __init__(self):
         return
 
+    @abc.abstractmethod
     def lunch_func(self, cfg, args):
         """
         create trainer, load traienr, start train
@@ -26,10 +26,7 @@ class BaseScheduler(ABC):
             cfg :ymal
             args :cmd
         """
-        trainer = build_trainer(cfg)
-        trainer.resume_or_load(args.resume)
-        trainer.loop()
-        return
+        pass
 
     def main_func(self, args, local_rank=None, global_rank=0, world_size=1, is_distributed=False):
         cfg = self.setup(args)

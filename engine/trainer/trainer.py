@@ -82,7 +82,6 @@ class BaseTrainer(abc.ABC):
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.output = cfg.OUTPUT_DIR
         self.iter_train_loader = iter(train_data_loader)
-        logging.getLogger(self.default_log_name).info('create {} as trainer'.format(self.__class__.__name__))
         return
 
     @abc.abstractmethod
