@@ -1,28 +1,27 @@
 import torch
-from .function.ssim import SSIM
 from .build import LOSS_ARCH_REGISTRY
 
 __all__ = [
-    'SSIMLoss'
+    'MSELoss'
 ]
 
 
 @LOSS_ARCH_REGISTRY.register()
-class SSIMLoss(torch.nn.Module):
+class MSELoss(torch.nn.Module):
     def __init__(self, lambda_weight=1.):
-        super(SSIMLoss, self).__init__()
+        super(MSELoss, self).__init__()
         self.lambda_weight = lambda_weight
-        self.ssim_op = SSIM()
+        self.l2_op = torch.nn.MSELoss()
         return
 
     def forward(self, x, target):
         """
         :param x: b, c, h, w
-        :param target: b, C, h, w
+        :param target: b, c, h, w
         :return:
         """
         assert x.shape == target.shape
-        loss = 1.0 - self.ssim_op(x, target)
+        loss = self.l2_op(x, target)
         return self.lambda_weight * loss
 
     def __repr__(self):
