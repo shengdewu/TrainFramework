@@ -23,11 +23,11 @@ class WarmupParamScheduler(CompositeParamScheduler):
     """
 
     def __init__(
-        self,
-        scheduler: ParamScheduler,
-        warmup_factor: float,
-        warmup_length: float,
-        warmup_method: str = "linear",
+            self,
+            scheduler: ParamScheduler,
+            warmup_factor: float,
+            warmup_length: float,
+            warmup_method: str = "linear",
     ):
         """
         Args:
@@ -52,7 +52,7 @@ class WarmupParamScheduler(CompositeParamScheduler):
         )
 
 
-class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
+class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
     """
     A LRScheduler which uses fvcore :class:`ParamScheduler` to multiply the
     learning rate of each param in the optimizer.
@@ -87,27 +87,52 @@ class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
     # case we only need a total of one scheduler that defines the relative LR multiplier.
 
     def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        multiplier: ParamScheduler,
-        max_iter: int,
-        last_iter: int = -1,
+            self,
+            optimizer: torch.optim.Optimizer,
+            warmup_factor,
+            warmup_iters,
+            lr_scheduler_param: dict,
+            max_iter: int,
+            last_iter: int = -1,
+            warmup_method='linear'
     ):
         """
         Args:
             optimizer, last_iter: See ``torch.optim.lr_scheduler._LRScheduler``.
                 ``last_iter`` is the same as ``last_epoch``.
-            multiplier: a fvcore ParamScheduler that defines the multiplier on
-                every LR of the optimizer
             max_iter: the total number of training iterations
         """
-        if not isinstance(multiplier, ParamScheduler):
-            raise ValueError(
-                "_LRMultiplier(multiplier=) must be an instance of fvcore "
-                f"ParamScheduler. Got {multiplier} instead."
-            )
-        self._multiplier = multiplier
         self._max_iter = max_iter
+
+        name = lr_scheduler_param['name']
+
+        if name == "WarmupMultiStepLR":
+            steps = [x for x in lr_scheduler_param['steps'] if x <= max_iter]
+            if len(steps) != len(lr_scheduler_param['steps']):
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "SOLVER.STEPS contains values larger than SOLVER.MAX_ITER. "
+                    "These values will be ignored."
+                )
+            sched = MultiStepParamScheduler(
+                values=[lr_scheduler_param.get('gamma', 0.1) ** k for k in range(len(steps) + 1)],
+                milestones=steps,
+                num_updates=max_iter,
+            )
+        elif name == "WarmupCosineLR":
+            start_value = lr_scheduler_param.get('start_value', 1.0)
+            end_value = lr_scheduler_param.get('end_value', 0.)
+            sched = CosineParamScheduler(start_value, end_value)
+        else:
+            raise ValueError("Unknown LR scheduler: {}".format(name))
+
+        self._multiplier = WarmupParamScheduler(
+            sched,
+            warmup_factor,
+            min(warmup_iters / max_iter, 1.0),
+            warmup_method,
+        )
+
         super().__init__(optimizer, last_epoch=last_iter)
 
     def state_dict(self):
@@ -123,6 +148,7 @@ class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
 Content below is no longer needed!
 """
 
+
 # NOTE: PyTorch's LR scheduler interface uses names that assume the LR changes
 # only on epoch boundaries. We typically use iteration based schedules instead.
 # As a result, "epoch" (e.g., as in self.last_epoch) should be understood to mean
@@ -134,14 +160,14 @@ Content below is no longer needed!
 
 class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        milestones: List[int],
-        gamma: float = 0.1,
-        warmup_factor: float = 0.001,
-        warmup_iters: int = 1000,
-        warmup_method: str = "linear",
-        last_epoch: int = -1,
+            self,
+            optimizer: torch.optim.Optimizer,
+            milestones: List[int],
+            gamma: float = 0.1,
+            warmup_factor: float = 0.001,
+            warmup_iters: int = 1000,
+            warmup_method: str = "linear",
+            last_epoch: int = -1,
     ):
         logger.warning(
             "WarmupMultiStepLR is deprecated! Use LRMultipilier with fvcore ParamScheduler instead!"
@@ -173,13 +199,13 @@ class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
 
 class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        max_iters: int,
-        warmup_factor: float = 0.001,
-        warmup_iters: int = 1000,
-        warmup_method: str = "linear",
-        last_epoch: int = -1,
+            self,
+            optimizer: torch.optim.Optimizer,
+            max_iters: int,
+            warmup_factor: float = 0.001,
+            warmup_iters: int = 1000,
+            warmup_method: str = "linear",
+            last_epoch: int = -1,
     ):
         logger.warning(
             "WarmupCosineLR is deprecated! Use LRMultipilier with fvcore ParamScheduler instead!"
@@ -222,7 +248,7 @@ class EmptyLRScheduler(torch.optim.lr_scheduler._LRScheduler):
 
 
 def _get_warmup_factor_at_iter(
-    method: str, iter: int, warmup_iters: int, warmup_factor: float
+        method: str, iter: int, warmup_iters: int, warmup_factor: float
 ) -> float:
     """
     Return the learning rate warmup factor at a specific iteration.
@@ -249,41 +275,3 @@ def _get_warmup_factor_at_iter(
     else:
         raise ValueError("Unknown warmup method: {}".format(method))
 
-
-def build_lr_scheduler(
-    cfg: CfgNode, optimizer: torch.optim.Optimizer
-) -> torch.optim.lr_scheduler._LRScheduler:
-    """
-    Build a LR scheduler from config.
-    """
-
-    if not cfg.SOLVER.LR_SCHEDULER.ENABLED:
-        return EmptyLRScheduler(optimizer)
-
-    name = cfg.SOLVER.LR_SCHEDULER.LR_SCHEDULER_NAME
-
-    if name == "WarmupMultiStepLR":
-        steps = [x for x in cfg.SOLVER.LR_SCHEDULER.STEPS if x <= cfg.SOLVER.MAX_ITER]
-        if len(steps) != len(cfg.SOLVER.LR_SCHEDULER.STEPS):
-            logger = logging.getLogger(__name__)
-            logger.warning(
-                "SOLVER.STEPS contains values larger than SOLVER.MAX_ITER. "
-                "These values will be ignored."
-            )
-        sched = MultiStepParamScheduler(
-            values=[cfg.SOLVER.LR_SCHEDULER.GAMMA ** k for k in range(len(steps) + 1)],
-            milestones=steps,
-            num_updates=cfg.SOLVER.MAX_ITER,
-        )
-    elif name == "WarmupCosineLR":
-        sched = CosineParamScheduler(1, 0)
-    else:
-        raise ValueError("Unknown LR scheduler: {}".format(name))
-
-    sched = WarmupParamScheduler(
-        sched,
-        cfg.SOLVER.LR_SCHEDULER.WARMUP_FACTOR,
-        min(cfg.SOLVER.LR_SCHEDULER.WARMUP_ITERS / cfg.SOLVER.MAX_ITER, 1.0),
-        cfg.SOLVER.LR_SCHEDULER.WARMUP_METHOD,
-    )
-    return LRMultiplier(optimizer, multiplier=sched, max_iter=cfg.SOLVER.MAX_ITER)

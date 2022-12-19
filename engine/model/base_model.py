@@ -2,10 +2,11 @@ import abc
 from typing import Iterator
 from yacs.config import CfgNode
 import torch
-from engine.slover import build_optimizer_with_gradient_clipping, build_lr_scheduler
+from engine.slover import build_optimizer_with_gradient_clipping, LRMultiplierScheduler, EmptyLRScheduler
 import engine.checkpoint.functional as checkpoint_f
 import logging
 from .import_optimizer import import_optimizer
+from .import_scheduler import import_scheduler
 
 
 class BaseModel(abc.ABC):
@@ -56,7 +57,27 @@ class BaseModel(abc.ABC):
         return build_optimizer_with_gradient_clipping(cfg, cls)(parameters, **params)
 
     def create_g_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
-        return build_lr_scheduler(cfg, optimizer)
+
+        if not cfg.SOLVER.LR_SCHEDULER.GENERATOR.ENABLED:
+            return EmptyLRScheduler(optimizer)
+
+        op_type = cfg.SOLVER.LR_SCHEDULER.GENERATOR.TYPE
+        params = dict()
+        for key, param in cfg.SOLVER.LR_SCHEDULER.GENERATOR.PARAMS.items():
+            if isinstance(param, dict):
+                sub_param = dict()
+                for sk, sp in param.items():
+                    sub_param[sk.lower()] = sp
+                params[key.lower()] = sub_param
+            else:
+                params[key.lower()] = param
+
+        if op_type == 'LRMultiplierScheduler':
+            params['max_iter'] = cfg.SOLVER.MAX_ITER
+            cls = LRMultiplierScheduler
+        else:
+            cls = import_scheduler(op_type)
+        return cls(optimizer, **params)
 
     @abc.abstractmethod
     def create_g_model(self, cfg) -> torch.nn.Module:

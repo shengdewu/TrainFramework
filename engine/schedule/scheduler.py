@@ -4,7 +4,10 @@ import torch.multiprocessing as mp
 from engine.config.parser import default_argument_parser
 from engine.config import get_cfg
 import engine.comm as comm
+from fvcore.common.config import CfgNode
 from fvcore.common.file_io import PathManager
+from iopath.common.file_io import g_pathmgr
+import yaml
 from engine.log.logger import setup_logger
 import logging
 from abc import ABC
@@ -109,8 +112,31 @@ class BaseScheduler(ABC):
         # NOTE: there is still a chance the port could be taken by other processes.
         return port
 
+    def discard_same_lr_opt(self, default_cfg, use_cfg_file):
+        with g_pathmgr.open(use_cfg_file, "r") as f:
+            user_cfg = yaml.safe_load(f)
+
+        lr_config = default_cfg.SOLVER.LR_SCHEDULER.GENERATOR
+        user_lr_config = user_cfg['SOLVER']['LR_SCHEDULER']['GENERATOR']
+        if lr_config.TYPE != user_lr_config['TYPE']:
+            default_cfg.SOLVER.LR_SCHEDULER.GENERATOR.PARAMS = CfgNode(new_allowed=True)
+
+        op_config = default_cfg.SOLVER.OPTIMIZER.GENERATOR
+        user_op_config = user_cfg['SOLVER']['OPTIMIZER']['GENERATOR']
+        if op_config.TYPE != user_op_config['TYPE']:
+            default_cfg.SOLVER.OPTIMIZER.GENERATOR.PARAMS = CfgNode(new_allowed=True)
+
+        op_config = default_cfg.SOLVER.OPTIMIZER.DISCRIMINATOR
+        user_op_config = user_cfg['SOLVER']['OPTIMIZER'].get('DISCRIMINATOR', None)
+        if user_op_config is not None and op_config.TYPE != user_op_config['TYPE']:
+            default_cfg.SOLVER.OPTIMIZER.DISCRIMINATOR.PARAMS = CfgNode(new_allowed=True)
+
+        return default_cfg
+
     def setup(self, args):
         cfg = get_cfg()
+        cfg = self.discard_same_lr_opt(cfg, args.config_file)
+
         cfg.merge_from_file(args.config_file)
         cfg.merge_from_list(args.opts)
         cfg.freeze()

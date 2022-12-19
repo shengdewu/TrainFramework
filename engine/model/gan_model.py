@@ -1,12 +1,13 @@
 import abc
 from engine.model.base_model import BaseModel
 from engine.slover import build_optimizer_with_gradient_clipping
-from engine.slover.lr_scheduler import EmptyLRScheduler
+from engine.slover.lr_scheduler import LRMultiplierScheduler, EmptyLRScheduler
 from typing import Iterator
 import torch
 import engine.checkpoint.functional as checkpoint_f
 import logging
 from .import_optimizer import import_optimizer
+from .import_scheduler import import_scheduler
 
 
 class BaseGanModel(BaseModel):
@@ -29,7 +30,27 @@ class BaseGanModel(BaseModel):
         return build_optimizer_with_gradient_clipping(cfg, cls)(parameters, **params)
 
     def create_d_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
-        return EmptyLRScheduler(optimizer)
+
+        if not cfg.SOLVER.LR_SCHEDULER.DISCRIMINATOR.ENABLED:
+            return EmptyLRScheduler(optimizer)
+
+        op_type = cfg.SOLVER.LR_SCHEDULER.DISCRIMINATOR.TYPE
+        params = dict()
+        for key, param in cfg.SOLVER.LR_SCHEDULER.DISCRIMINATOR.PARAMS.items():
+            if isinstance(param, dict):
+                sub_param = dict()
+                for sk, sp in param.items():
+                    sub_param[sk.lower()] = sp
+                params[key.lower()] = sub_param
+            else:
+                params[key.lower()] = param
+
+        if op_type == 'LRMultiplierScheduler':
+            params['max_iter'] = cfg.SOLVER.MAX_ITER
+            cls = LRMultiplierScheduler
+        else:
+            cls = import_scheduler(op_type)
+        return cls(optimizer, **params)
 
     @abc.abstractmethod
     def create_d_model(self, cfg) -> torch.nn.Module:
