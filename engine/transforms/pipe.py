@@ -21,10 +21,10 @@ class TransformCompose:
                 raise TypeError('transform must be callable or a dict')
         return
 
-    def __call__(self, data):
+    def __call__(self, **kwargs):
         for transformer in self.transformers:
-            data = transformer(data)
-        return data
+            kwargs = transformer(**kwargs)
+        return kwargs
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('
