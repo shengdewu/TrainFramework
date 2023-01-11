@@ -26,12 +26,15 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 RUN pip3 install --no-cache-dir --upgrade pip -i https://mirrors.aliyun.com/pypi/simple && \
     pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
     pip3 install --no-cache-dir Cython==0.29.21 scikit-build==0.11.1 wheel==0.35.1 && \
-    pip3 install --no-cache-dir opencv-python opencv-contrib-python numpy==1.16.0  &&\
-    pip3 install numba==0.51.2 scipy==1.4.1 pyyaml==5.1.2 easydict==1.9 json-tricks==3.13.5 pycrypto==2.6.1 &&\
+    pip3 install numpy==1.16.0 numba==0.51.2 scipy==1.4.1 pyyaml==5.1.2 easydict==1.9 json-tricks==3.13.5 pycrypto==2.6.1 &&\
     pip3 install bottle==0.12.18 paste==3.5.0 tqdm==4.54.1 matplotlib==3.3.3 munkres==1.1.4 ffmpeg==1.4 && \
     pip3 install --no-cache-dir Pillow==8.1.2 fvcore==0.1.5.post20210825 scikit-image==0.17.2 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
 
+RUN pip3 install --no-cache-dir --upgrade pip -i https://mirrors.aliyun.com/pypi/simple && \
+    pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
+    pip3 install --no-cache-dir opencv-python==4.6.0.66 opencv-contrib-python==4.5.5.64 &&\
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
 
 RUN pip3 install --no-cache-dir --upgrade pip -i https://mirrors.aliyun.com/pypi/simple && \
     pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
