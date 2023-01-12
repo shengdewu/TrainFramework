@@ -9,7 +9,7 @@ COPY requirements.txt /home/
 
 # -- install some tool
 RUN rm /etc/apt/sources.list.d/cuda.list && \
-    rm /etc/apt/sources.list.d/nvidia-ml.list && \
+    #rm /etc/apt/sources.list.d/nvidia-ml.list && \
     apt-get update -y && apt-get install -y --no-install-recommends \
     software-properties-common build-essential supervisor sudo ca-certificates \
     curl unzip wget git vim htop net-tools inetutils-ping openssh-client\
