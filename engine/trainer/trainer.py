@@ -7,8 +7,10 @@ from engine.model.build import build_model
 from engine.data.build import build_dataset
 from torch.utils.data import Dataset
 import torch
+from .build import BUILD_TRAINER_REGISTRY
 
 
+@BUILD_TRAINER_REGISTRY.register()
 class BaseTrainer:
     """
     first:
@@ -51,12 +53,12 @@ class BaseTrainer:
         self.set_collate_fn(cfg)
 
         train_dataset, valid_dataset = self.create_dataset(cfg)
-        pin_memory = cfg.MODEL.DEVICE != 'cpu'
-        if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
+        pin_memory = cfg.TRAINER.DEVICE != 'cpu'
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
             train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
                                                                                           batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
-                                                                                          rank=cfg.MODEL.TRAINER.GLOBAL_RANK,
-                                                                                          world_size=cfg.MODEL.TRAINER.WORLD_SIZE,
+                                                                                          rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
+                                                                                          world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
                                                                                           num_workers=cfg.DATALOADER.NUM_WORKERS,
                                                                                           collate_fn=self.collate_train_fn,
                                                                                           pin_memory=pin_memory)
@@ -74,8 +76,8 @@ class BaseTrainer:
                                                                       pin_memory=pin_memory)
 
         self.start_iter = 0
-        self.model_path = cfg.MODEL.WEIGHTS
-        self.device = cfg.MODEL.DEVICE
+        self.model_path = cfg.TRAINER.WEIGHTS
+        self.device = cfg.TRAINER.DEVICE
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.output = cfg.OUTPUT_DIR
         self.iter_train_loader = iter(train_data_loader)

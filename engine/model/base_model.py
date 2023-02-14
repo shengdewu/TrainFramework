@@ -7,8 +7,10 @@ import engine.checkpoint.functional as checkpoint_f
 import logging
 from .import_optimizer import import_optimizer
 from .import_scheduler import import_scheduler
+from .build import BUILD_MODEL_REGISTRY
 
 
+@BUILD_MODEL_REGISTRY.register()
 class BaseModel(abc.ABC):
     """
     1. Must be Create model and optimizer in constructer
@@ -36,34 +38,37 @@ class BaseModel(abc.ABC):
             )
             self.g_scheduler = build_lr_scheduler(cfg, self.g_optimizer)
         """
-        self.g_model = self.create_g_model(cfg).to(cfg.MODEL.DEVICE)
-        self.g_optimizer = self.create_g_optimizer(cfg, self.g_model.parameters())
-        self.g_scheduler = self.create_g_scheduler(cfg, self.g_optimizer)
-        self.default_log_name = cfg.OUTPUT_LOG_NAME
-        self.device = cfg.MODEL.DEVICE
         assert isinstance(cfg, CfgNode)
+        self.default_log_name = cfg.OUTPUT_LOG_NAME
         self.cfg = cfg.clone()
+        self.device = cfg.TRAINER.DEVICE
+        self.max_iter = cfg.SOLVER.MAX_ITER
+
+        self.g_model = self.create_model(params=cfg.TRAINER.MODEL.GENERATOR).to(self.device)
+        self.g_optimizer = self.create_optimizer(cfg.SOLVER.GENERATOR.OPTIMIZER, self.g_model.parameters())
+        self.g_scheduler = self.create_scheduler(cfg.SOLVER.GENERATOR.LR_SCHEDULER, self.g_optimizer)
+
         logging.getLogger(self.default_log_name).info('create model {} with {}'.format(self.__class__.__name__, self.g_model))
         return
 
-    def create_g_optimizer(self, cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
-        op_type = cfg.SOLVER.OPTIMIZER.GENERATOR.TYPE
+    def create_optimizer(self, optimizer_cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
+        op_type = optimizer_cfg.TYPE
         params = dict()
-        for key, param in cfg.SOLVER.OPTIMIZER.GENERATOR.PARAMS.items():
+        for key, param in optimizer_cfg.PARAMS.items():
             params[key.lower()] = param
 
         cls = import_optimizer(op_type)
 
-        return build_optimizer_with_gradient_clipping(cfg, cls)(parameters, **params)
+        return build_optimizer_with_gradient_clipping(optimizer_cfg.CLIP_GRADIENTS, cls)(parameters, **params)
 
-    def create_g_scheduler(self, cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
+    def create_scheduler(self, scheduler_cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
 
-        if not cfg.SOLVER.LR_SCHEDULER.GENERATOR.ENABLED:
+        if not scheduler_cfg.ENABLED:
             return EmptyLRScheduler(optimizer)
 
-        op_type = cfg.SOLVER.LR_SCHEDULER.GENERATOR.TYPE
+        op_type = scheduler_cfg.TYPE
         params = dict()
-        for key, param in cfg.SOLVER.LR_SCHEDULER.GENERATOR.PARAMS.items():
+        for key, param in scheduler_cfg.PARAMS.items():
             if isinstance(param, dict):
                 sub_param = dict()
                 for sk, sp in param.items():
@@ -73,14 +78,14 @@ class BaseModel(abc.ABC):
                 params[key.lower()] = param
 
         if op_type == 'LRMultiplierScheduler':
-            params['max_iter'] = cfg.SOLVER.MAX_ITER
+            params['max_iter'] = self.max_iter
             cls = LRMultiplierScheduler
         else:
             cls = import_scheduler(op_type)
         return cls(optimizer, **params)
 
     @abc.abstractmethod
-    def create_g_model(self, cfg) -> torch.nn.Module:
+    def create_model(self, params) -> torch.nn.Module:
         raise NotImplemented('the create_model must be implement')
 
     @abc.abstractmethod
@@ -160,21 +165,21 @@ class BaseModel(abc.ABC):
         :return:
 
         eg:
-            if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
-                logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.MODEL.TRAINER.GPU_ID))
+            if cfg.TRAINER.PARADIGM.TYPE == 1 and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
+                logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
                 model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
-                model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.MODEL.TRAINER.GPU_ID])
-            elif cfg.MODEL.TRAINER.TYPE == 0:
+                model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+            elif cfg.TRAINER.PARADIGM.TYPE == 0:
                 logging.getLogger(__name__).info('launch model by parallel')
                 model = torch.nn.parallel.DataParallel(model)
             else:
                 logging.getLogger(__name__).info('launch model by singal machine')
 
         """
-        if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
-            logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.MODEL.TRAINER.GPU_ID))
-            self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.MODEL.TRAINER.GPU_ID])
-        elif cfg.MODEL.TRAINER.TYPE == 0:
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
+            logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
+            self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        elif cfg.TRAINER.PARADIGM.TYPE == 0:
             logging.getLogger(self.default_log_name).info('launch model by parallel')
             self.g_model = torch.nn.parallel.DataParallel(self.g_model)
         else:

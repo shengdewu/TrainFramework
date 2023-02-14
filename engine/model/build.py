@@ -7,4 +7,4 @@ BUILD_MODEL_REGISTRY
 
 
 def build_model(cfg):
-    return BUILD_MODEL_REGISTRY.get(cfg.MODEL.TRAINER.MODEL)(cfg)
+    return BUILD_MODEL_REGISTRY.get(cfg.TRAINER.MODEL.NAME)(cfg)

@@ -37,27 +37,27 @@ class BaseScheduler:
 
         cfg.defrost()
         if is_distributed:
-            cfg.MODEL.TRAINER.TYPE = 1 # -1 :normal, 0:parallel, 1 :distributed
-            cfg.MODEL.TRAINER.GPU_ID = local_rank
-            cfg.MODEL.TRAINER.GLOBAL_RANK = global_rank
-            cfg.MODEL.TRAINER.WORLD_SIZE = world_size
-            cfg.MODEL.TRAINER.NUM_PER_GPUS = args.num_gpus
-            cfg.MODEL.DEVICE = 'cuda'
+            cfg.TRAINER.PARADIGM.TYPE = 'DDP'  # -1 :normal, 0:parallel, 1 :distributed
+            cfg.TRAINER.PARADIGM.GPU_ID = local_rank
+            cfg.TRAINER.PARADIGM.GLOBAL_RANK = global_rank
+            cfg.TRAINER.PARADIGM.WORLD_SIZE = world_size
+            cfg.TRAINER.PARADIGM.NUM_PER_GPUS = args.num_gpus
+            cfg.TRAINER.DEVICE = 'cuda'
         else:
             if torch.cuda.is_available() and args.num_gpus >= 2:
-                cfg.MODEL.TRAINER.TYPE = 0  # -1 :normal, 0:parallel, 1 :distributed
-                cfg.MODEL.TRAINER.GPU_ID = None
-                cfg.MODEL.TRAINER.GLOBAL_RANK = 0
-                cfg.MODEL.TRAINER.WORLD_SIZE = 1
-                cfg.MODEL.TRAINER.NUM_PER_GPUS = args.num_gpus
-                cfg.MODEL.DEVICE = 'cuda'
+                cfg.TRAINER.PARADIGM.TYPE = 'DP'  # -1 :normal, 0:parallel, 1 :distributed
+                cfg.TRAINER.PARADIGM.GPU_ID = None
+                cfg.TRAINER.PARADIGM.GLOBAL_RANK = 0
+                cfg.TRAINER.PARADIGM.WORLD_SIZE = 1
+                cfg.TRAINER.PARADIGM.NUM_PER_GPUS = args.num_gpus
+                cfg.TRAINER.DEVICE = 'cuda'
             else:
-                cfg.MODEL.TRAINER.TYPE = -1  # -1 :normal, 0:parallel, 1 :distributed
-                cfg.MODEL.TRAINER.GPU_ID = None
-                cfg.MODEL.TRAINER.GLOBAL_RANK = 0
-                cfg.MODEL.TRAINER.WORLD_SIZE = 1
-                cfg.MODEL.TRAINER.NUM_PER_GPUS = 1
-                cfg.MODEL.DEVICE = 'cuda' if torch.cuda.is_available() and args.num_gpus > 0 else 'cpu'
+                cfg.TRAINER.PARADIGM.TYPE = 'NORMAL'  # -1 :normal, 0:parallel, 1 :distributed
+                cfg.TRAINER.PARADIGM.GPU_ID = None
+                cfg.TRAINER.PARADIGM.GLOBAL_RANK = 0
+                cfg.TRAINER.PARADIGM.WORLD_SIZE = 1
+                cfg.TRAINER.PARADIGM.NUM_PER_GPUS = 1
+                cfg.TRAINER.DEVICE = 'cuda' if torch.cuda.is_available() and args.num_gpus > 0 else 'cpu'
 
         cfg.freeze()
 
@@ -113,30 +113,43 @@ class BaseScheduler:
         # NOTE: there is still a chance the port could be taken by other processes.
         return port
 
-    def discard_same_lr_opt(self, default_cfg, use_cfg_file):
+    def align_struct(self, default_cfg, use_cfg_file):
         with g_pathmgr.open(use_cfg_file, "r") as f:
             user_cfg = yaml.safe_load(f)
 
-        lr_config = default_cfg.SOLVER.LR_SCHEDULER.GENERATOR
-        user_lr_config = user_cfg['SOLVER']['LR_SCHEDULER']['GENERATOR']
+        lr_config = default_cfg.SOLVER.GENERATOR.LR_SCHEDULER
+        user_lr_config = user_cfg['SOLVER']['GENERATOR']['LR_SCHEDULER']
         if lr_config.TYPE != user_lr_config['TYPE']:
-            default_cfg.SOLVER.LR_SCHEDULER.GENERATOR.PARAMS = CfgNode(new_allowed=True)
+            default_cfg.SOLVER.GENERATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
 
-        op_config = default_cfg.SOLVER.OPTIMIZER.GENERATOR
-        user_op_config = user_cfg['SOLVER']['OPTIMIZER']['GENERATOR']
+        op_config = default_cfg.SOLVER.GENERATOR.OPTIMIZER
+        user_op_config = user_cfg['SOLVER']['GENERATOR']['OPTIMIZER']
         if op_config.TYPE != user_op_config['TYPE']:
-            default_cfg.SOLVER.OPTIMIZER.GENERATOR.PARAMS = CfgNode(new_allowed=True)
+            default_cfg.SOLVER.GENERATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
 
-        op_config = default_cfg.SOLVER.OPTIMIZER.DISCRIMINATOR
-        user_op_config = user_cfg['SOLVER']['OPTIMIZER'].get('DISCRIMINATOR', None)
-        if user_op_config is not None and op_config.TYPE != user_op_config['TYPE']:
-            default_cfg.SOLVER.OPTIMIZER.DISCRIMINATOR.PARAMS = CfgNode(new_allowed=True)
+        # discriminator
+        user_dicriminator_config = user_cfg['SOLVER']['DISCRIMINATOR']
+        if isinstance(user_dicriminator_config, list):
+            default_cfg.SOLVER.DISCRIMINATOR = user_cfg['SOLVER']['DISCRIMINATOR']
+        else:
+            lr_config = default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER
+            user_lr_config = user_dicriminator_config['LR_SCHEDULER']
+            if lr_config.TYPE != user_lr_config['TYPE']:
+                default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
+
+            op_config = default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER
+            user_op_config = user_dicriminator_config['OPTIMIZER']
+            if op_config.TYPE != user_op_config['TYPE']:
+                default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
+
+        if isinstance(user_cfg['TRAINER']['MODEL']['DISCRIMINATOR'], list):
+            default_cfg.TRAINER.MODEL.DISCRIMINATOR = user_cfg['TRAINER']['MODEL']['DISCRIMINATOR']
 
         return default_cfg
 
     def setup(self, args):
         cfg = get_cfg()
-        cfg = self.discard_same_lr_opt(cfg, args.config_file)
+        cfg = self.align_struct(cfg, args.config_file)
 
         cfg.merge_from_file(args.config_file)
         cfg.merge_from_list(args.opts)

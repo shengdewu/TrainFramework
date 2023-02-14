@@ -52,11 +52,11 @@ class MyModel(BaseModel):
 
     def enable_distribute(self, cfg):
         # 一般不需要重写，除非使用了Gan模型
-        if cfg.MODEL.TRAINER.TYPE == 1 and cfg.MODEL.TRAINER.GPU_ID >= 0:
-            logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.MODEL.TRAINER.GPU_ID))
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
+            logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
-            self.g_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.MODEL.TRAINER.GPU_ID])
-        elif cfg.MODEL.TRAINER.TYPE == 0:
+            self.g_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        elif cfg.TRAINER.PARADIGM.TYPE == 0:
             logging.getLogger(__name__).info('launch model by parallel')
             self.g_model = torch.nn.parallel.DataParallel(self.g_model)
         else:

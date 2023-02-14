@@ -64,16 +64,16 @@ def _generate_optimizer_class_with_gradient_clipping(
             global_clipper(all_params)
         super(type(self), self).step(closure)
 
-    OptimizerWithGradientClip = type(
+    optimizer_with_gradient_clip = type(
         optimizer.__name__ + "WithGradientClip",
         (optimizer,),
         {"step": optimizer_wgc_step},
     )
-    return OptimizerWithGradientClip
+    return optimizer_with_gradient_clip
 
 
 def build_optimizer_with_gradient_clipping(
-    cfg: CfgNode, optimizer: Type[torch.optim.Optimizer]
+    clip_granients: CfgNode, optimizer: Type[torch.optim.Optimizer]
 ) -> Type[torch.optim.Optimizer]:
     """
     If gradient clipping is enabled through config options, wraps the existing
@@ -82,14 +82,14 @@ def build_optimizer_with_gradient_clipping(
     include gradient clipping.
 
     Args:
-        cfg: CfgNode, configuration options
+        clip_granients: CfgNode, configuration options
         optimizer: type. A subclass of torch.optim.Optimizer
 
     Return:
         type: either the input `optimizer` (if gradient clipping is disabled), or
             a subclass of it with gradient clipping included in the `step` method.
     """
-    if not cfg.SOLVER.CLIP_GRADIENTS.ENABLED:
+    if not clip_granients.ENABLED:
         return optimizer
     if isinstance(optimizer, torch.optim.Optimizer):
         optimizer_type = type(optimizer)
@@ -97,12 +97,12 @@ def build_optimizer_with_gradient_clipping(
         assert issubclass(optimizer, torch.optim.Optimizer), optimizer
         optimizer_type = optimizer
 
-    grad_clipper = _create_gradient_clipper(cfg.SOLVER.CLIP_GRADIENTS)
-    OptimizerWithGradientClip = _generate_optimizer_class_with_gradient_clipping(
-        optimizer_type, is_group=cfg.SOLVER.CLIP_GRADIENTS.GROUP, per_param_clipper=grad_clipper
+    grad_clipper = _create_gradient_clipper(clip_granients)
+    optimizer_with_gradient_clip = _generate_optimizer_class_with_gradient_clipping(
+        optimizer_type, is_group=clip_granients.GROUP, per_param_clipper=grad_clipper
     )
     if isinstance(optimizer, torch.optim.Optimizer):
-        optimizer.__class__ = OptimizerWithGradientClip  # a bit hacky, not recommended
+        optimizer.__class__ = optimizer_with_gradient_clip  # a bit hacky, not recommended
         return optimizer
     else:
-        return OptimizerWithGradientClip
+        return optimizer_with_gradient_clip
