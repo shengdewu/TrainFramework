@@ -69,8 +69,9 @@ class BaseGanModel(BaseModel):
 
         loss_dict['g_learning_rate'] = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
         if isinstance(self.d_scheduler, dict):
+            loss_dict['d_learning_rate'] = list()
             for k, d_schedler in self.d_scheduler.items():
-                loss_dict['d_learning_rate'] = dict(k='*'.join([str(lr) for lr in d_schedler.get_last_lr()]))
+                loss_dict['d_learning_rate'].append({k: '*'.join([str(lr) for lr in d_schedler.get_last_lr()])})
         else:
             loss_dict['d_learning_rate'] = '*'.join([str(lr) for lr in self.d_scheduler.get_last_lr()])
         return loss_dict
