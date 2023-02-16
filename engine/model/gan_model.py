@@ -101,8 +101,8 @@ class BaseGanModel(BaseModel):
         if isinstance(self.d_model, dict):
             for k, d_model in self.d_model.items():
                 state_dict['d_model_{}'.format(k)] = checkpoint_f.get_model_state_dict(d_model)
-                state_dict['d_optimizer_{}'] = checkpoint_f.get_model_state_dict(self.d_optimizer[k])
-                state_dict['d_scheduler_{}'] = checkpoint_f.get_model_state_dict(self.d_scheduler[k])
+                state_dict['d_optimizer_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_optimizer[k])
+                state_dict['d_scheduler_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_scheduler[k])
         else:
             state_dict['d_model'] = checkpoint_f.get_model_state_dict(self.d_model)
             state_dict['d_optimizer'] = checkpoint_f.get_model_state_dict(self.d_optimizer)
@@ -121,8 +121,8 @@ class BaseGanModel(BaseModel):
         if isinstance(self.d_model, dict):
             for k, d_model in self.d_model.items():
                 checkpoint_f.load_model_state_dict(d_model,  state_dict['d_model_{}'.format(k)], log_name=self.default_log_name)
-                checkpoint_f.load_model_state_dict(self.d_optimizer[k], state_dict['d_optimizer_{}'.format(k)], log_name=self.default_log_name)
-                checkpoint_f.load_model_state_dict(self.d_scheduler[k], state_dict['d_scheduler_{}'.format(k)], log_name=self.default_log_name)
+                checkpoint_f.load_checkpoint_state_dict(self.d_optimizer[k], state_dict['d_optimizer_{}'.format(k)])
+                checkpoint_f.load_checkpoint_state_dict(self.d_scheduler[k], state_dict['d_scheduler_{}'.format(k)])
         else:
             checkpoint_f.load_model_state_dict(self.d_model, state_dict['d_model'], log_name=self.default_log_name)
             checkpoint_f.load_checkpoint_state_dict(self.d_optimizer, state_dict['d_optimizer'])
