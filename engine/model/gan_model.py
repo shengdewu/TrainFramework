@@ -10,16 +10,16 @@ class BaseGanModel(BaseModel):
     def __init__(self, cfg):
         super(BaseGanModel, self).__init__(cfg)
 
-        d_model_cfg = cfg.TRAINER.MODEL.DISCRIMINATOR
+        d_model_cfg = cfg.TRAINER.MODEL.get('DISCRIMINATOR', dict())
         if isinstance(d_model_cfg, list):
             d_model = dict()
             for d_cfg in d_model_cfg:
                 assert isinstance(d_cfg, dict)
-                assert len(d_cfg) == 2
+                assert len(d_cfg) >= 1
                 d_name = d_cfg['NAME']
-                d_model[d_name] = self.create_d_model(params=d_cfg['PARAMS']).to(self.device)
+                d_model[d_name] = self.create_d_model(params=d_cfg.get('PARAMS', dict())).to(self.device)
         else:
-            d_model = self.create_d_model(params=cfg.TRAINER.MODEL.DISCRIMINATOR).to(self.device)
+            d_model = self.create_d_model(params=d_model_cfg).to(self.device)
 
         self.d_model = d_model
 

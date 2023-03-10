@@ -44,7 +44,7 @@ class BaseModel(abc.ABC):
         self.device = cfg.TRAINER.DEVICE
         self.max_iter = cfg.SOLVER.MAX_ITER
 
-        self.g_model = self.create_model(params=cfg.TRAINER.MODEL.GENERATOR).to(self.device)
+        self.g_model = self.create_model(params=cfg.TRAINER.MODEL.get('GENERATOR', dict())).to(self.device)
         self.g_optimizer = self.create_optimizer(cfg.SOLVER.GENERATOR.OPTIMIZER, self.g_model.parameters())
         self.g_scheduler = self.create_scheduler(cfg.SOLVER.GENERATOR.LR_SCHEDULER, self.g_optimizer)
 
