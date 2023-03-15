@@ -54,7 +54,7 @@ class BaseTrainer:
 
         train_dataset, valid_dataset = self.create_dataset(cfg)
         pin_memory = cfg.TRAINER.DEVICE != 'cpu'
-        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
             train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
                                                                                           batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
                                                                                           rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,

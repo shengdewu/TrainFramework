@@ -159,29 +159,25 @@ class BaseModel(abc.ABC):
         checkpoint_f.load_checkpoint_state_dict(self.g_scheduler, state_dict['g_scheduler'])
         return
 
+    def enable_dirstribute_ddp(self, cfg):
+        logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
+        self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        return
+
+    def enable_distribute_dp(self, cfg):
+        logging.getLogger(self.default_log_name).info('launch model by parallel')
+        self.g_model = torch.nn.parallel.DataParallel(self.g_model)
+        return
+
     def enable_distribute(self, cfg):
         """
         :param cfg:
         :return:
-
-        eg:
-            if cfg.TRAINER.PARADIGM.TYPE == 1 and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
-                logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
-                model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
-                model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
-            elif cfg.TRAINER.PARADIGM.TYPE == 0:
-                logging.getLogger(__name__).info('launch model by parallel')
-                model = torch.nn.parallel.DataParallel(model)
-            else:
-                logging.getLogger(__name__).info('launch model by singal machine')
-
         """
-        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
-            logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
-            self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
-        elif cfg.TRAINER.PARADIGM.TYPE == 0:
-            logging.getLogger(self.default_log_name).info('launch model by parallel')
-            self.g_model = torch.nn.parallel.DataParallel(self.g_model)
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
+            self.enable_dirstribute_ddp(cfg)
+        elif cfg.TRAINER.PARADIGM.TYPE == 'DP':
+            self.enable_distribute_dp(cfg)
         else:
             logging.getLogger(self.default_log_name).info('launch model by stand alone machine')
         return
