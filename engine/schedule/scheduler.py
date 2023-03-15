@@ -130,21 +130,23 @@ class BaseScheduler:
             default_cfg.SOLVER.GENERATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
 
         # discriminator
-        user_dicriminator_config = user_cfg['SOLVER']['DISCRIMINATOR']
-        if isinstance(user_dicriminator_config, list):
-            default_cfg.SOLVER.DISCRIMINATOR = user_cfg['SOLVER']['DISCRIMINATOR']
-        else:
-            lr_config = default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER
-            user_lr_config = user_dicriminator_config['LR_SCHEDULER']
-            if lr_config.TYPE != user_lr_config['TYPE']:
-                default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
+        user_dicriminator_config = user_cfg['SOLVER'].get('DISCRIMINATOR', None)
+        if user_dicriminator_config is not None:
+            if isinstance(user_dicriminator_config, list):
+                default_cfg.SOLVER.DISCRIMINATOR = user_cfg['SOLVER']['DISCRIMINATOR']
+            else:
+                lr_config = default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER
+                user_lr_config = user_dicriminator_config['LR_SCHEDULER']
+                if lr_config.TYPE != user_lr_config['TYPE']:
+                    default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
 
-            op_config = default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER
-            user_op_config = user_dicriminator_config['OPTIMIZER']
-            if op_config.TYPE != user_op_config['TYPE']:
-                default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
+                op_config = default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER
+                user_op_config = user_dicriminator_config['OPTIMIZER']
+                if op_config.TYPE != user_op_config['TYPE']:
+                    default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
 
-        if isinstance(user_cfg['TRAINER']['MODEL']['DISCRIMINATOR'], list):
+        user_dicriminator_config = user_cfg['TRAINER']['MODEL'].get('DISCRIMINATOR', None)
+        if user_dicriminator_config is not None and isinstance(user_dicriminator_config, list):
             default_cfg.TRAINER.MODEL.DISCRIMINATOR = user_cfg['TRAINER']['MODEL']['DISCRIMINATOR']
 
         return default_cfg
