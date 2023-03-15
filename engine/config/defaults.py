@@ -4,7 +4,7 @@ _C = CfgNode(new_allowed=True)
 
 _C.TRAINER = CfgNode(new_allowed=True)
 _C.TRAINER.NAME = 'BaseTrainer'
-_C.TRAINER.WEIGHTS = ''
+_C.TRAINER.WEIGHTS = None
 _C.TRAINER.DEVICE = 'cuda'
 _C.TRAINER.PARADIGM = CfgNode(new_allowed=True)
 _C.TRAINER.MODEL = CfgNode(new_allowed=True)

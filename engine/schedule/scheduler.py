@@ -13,6 +13,11 @@ import logging
 import os
 import engine.collect_env as collect_env
 from engine.trainer.build import build_trainer
+import tempfile
+import shutil
+import sys
+import types
+from importlib import import_module
 
 
 class BaseScheduler:
@@ -113,10 +118,7 @@ class BaseScheduler:
         # NOTE: there is still a chance the port could be taken by other processes.
         return port
 
-    def align_struct(self, default_cfg, use_cfg_file):
-        with g_pathmgr.open(use_cfg_file, "r") as f:
-            user_cfg = yaml.safe_load(f)
-
+    def align_struct(self, default_cfg, user_cfg):
         lr_config = default_cfg.SOLVER.GENERATOR.LR_SCHEDULER
         user_lr_config = user_cfg['SOLVER']['GENERATOR']['LR_SCHEDULER']
         if lr_config.TYPE != user_lr_config['TYPE']:
@@ -147,11 +149,65 @@ class BaseScheduler:
 
         return default_cfg
 
+    @staticmethod
+    def check_file_exist(filename, msg_tmpl='file "{}" does not exist'):
+        if not os.path.isfile(filename):
+            raise FileNotFoundError(msg_tmpl.format(filename))
+
+    def dict2cfg(self, config, is_cfg=True):
+        uppre_config = dict()
+        for k, v in config.items():
+            if isinstance(v, dict):
+                uppre_config[k.upper()] = self.dict2cfg(v, is_cfg)
+            elif isinstance(v, list):
+                if isinstance(v[0], dict):
+                    uppre_config[k.upper()] = list()
+                    for vv in v:
+                        uppre_config[k.upper()].append(self.dict2cfg(vv, is_cfg=False))
+                else:
+                    uppre_config[k.upper()] = v.copy()
+            else:
+                uppre_config[k.upper()] = v
+        if is_cfg:
+            uppre_config = CfgNode(init_dict=uppre_config)
+        return uppre_config
+
+    def py2cfg(self, file_name):
+        file_name = os.path.abspath((os.path.expanduser(file_name)))
+        self.check_file_exist(file_name)
+        cfg = get_cfg()
+        keys = [key.lower() for key in cfg.keys()]
+        with tempfile.TemporaryDirectory() as temp_config_dir:
+            temp_config_file = tempfile.NamedTemporaryFile(
+                dir=temp_config_dir, suffix='.py')
+            temp_config_name = os.path.basename(temp_config_file.name)
+            shutil.copyfile(file_name, temp_config_file.name)
+            temp_module_name = os.path.splitext(temp_config_name)[0]
+            sys.path.insert(0, temp_config_dir)
+            mod = import_module(temp_module_name)
+            sys.path.pop(0)
+            cfg_dict = {
+                name: value
+                for name, value in mod.__dict__.items()
+                if not name.startswith('__')
+                and not isinstance(value, types.ModuleType)
+                and not isinstance(value, types.FunctionType)
+                and name.lower() in keys
+            }
+            del sys.modules[temp_module_name]
+            temp_config_file.close()
+        return self.dict2cfg(cfg_dict)
+
     def setup(self, args):
         cfg = get_cfg()
-        cfg = self.align_struct(cfg, args.config_file)
+        if args.config_file.endswith('.py'):
+            user_cfg = self.py2cfg(args.config_file)
+        else:
+            with g_pathmgr.open(args.config_file, "r") as f:
+                user_cfg = self.dict2cfg(yaml.safe_load(f))
 
-        cfg.merge_from_file(args.config_file)
+        cfg = self.align_struct(cfg, user_cfg)
+        cfg.merge_from_other_cfg(user_cfg)
         cfg.merge_from_list(args.opts)
         cfg.freeze()
 
@@ -164,7 +220,7 @@ class BaseScheduler:
 
         num_gpus_per_machine = args.num_gpus
         num_machines = args.num_machines
-        machine_rank = args.machine_rank  #current machine node no.
+        machine_rank = args.machine_rank  # current machine node no.
         dist_url = args.dist_url
 
         world_size = num_machines * num_gpus_per_machine
@@ -192,4 +248,3 @@ class BaseScheduler:
             self.main_func(args, is_distributed=False)
 
         return
-
