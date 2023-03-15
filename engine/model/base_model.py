@@ -159,9 +159,13 @@ class BaseModel(abc.ABC):
         checkpoint_f.load_checkpoint_state_dict(self.g_scheduler, state_dict['g_scheduler'])
         return
 
+    def sync_batch_norm(self):
+        return self.g_model
+
     def enable_dirstribute_ddp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
-        self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        model = self.sync_batch_norm()
+        self.g_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
         return
 
     def enable_distribute_dp(self, cfg):
