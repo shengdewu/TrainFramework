@@ -31,6 +31,7 @@ class BaseTrainer:
     ps:
         model may be by registered use Registry (from fvcore.common.registry import)
     """
+
     def __init__(self, cfg):
         self.default_log_name = cfg.OUTPUT_LOG_NAME
 
@@ -53,27 +54,7 @@ class BaseTrainer:
         self.set_collate_fn(cfg)
 
         train_dataset, valid_dataset = self.create_dataset(cfg)
-        pin_memory = cfg.TRAINER.DEVICE != 'cpu'
-        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
-            train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
-                                                                                          batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
-                                                                                          rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
-                                                                                          world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
-                                                                                          num_workers=cfg.DATALOADER.NUM_WORKERS,
-                                                                                          collate_fn=self.collate_train_fn,
-                                                                                          pin_memory=pin_memory)
-        else:
-            train_data_loader = engine_data_loader.create_iterable_data_loader(train_dataset,
-                                                                               batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
-                                                                               num_workers=cfg.DATALOADER.NUM_WORKERS,
-                                                                               collate_fn=self.collate_train_fn,
-                                                                               pin_memory=pin_memory)
-
-        self.test_data_loader = engine_data_loader.create_data_loader(valid_dataset,
-                                                                      cfg.SOLVER.TEST_PER_BATCH,
-                                                                      cfg.DATALOADER.NUM_WORKERS,
-                                                                      collate_fn=self.collate_valid_fn,
-                                                                      pin_memory=pin_memory)
+        train_data_loader, test_data_loader = self.create_dataloader(cfg, train_dataset, valid_dataset)
 
         self.start_iter = 0
         self.model_path = cfg.TRAINER.WEIGHTS
@@ -81,11 +62,7 @@ class BaseTrainer:
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.output = cfg.OUTPUT_DIR
         self.iter_train_loader = iter(train_data_loader)
-        return
-
-    def create_dataset(self, cfg) -> (Dataset, Dataset):
-        train_dataset = build_dataset(cfg.DATALOADER.TRAIN_DATA_SET)
-        valid_dataset = build_dataset(cfg.DATALOADER.VAL_DATA_SET)
+        self.test_data_loader = test_data_loader
 
         total_data_per_epoch = len(train_dataset) / cfg.SOLVER.TRAIN_PER_BATCH
 
@@ -94,6 +71,39 @@ class BaseTrainer:
         format_string += 'there are {} data in one epoch and actually trained for {} epoch'.format(total_data_per_epoch, cfg.SOLVER.MAX_ITER / total_data_per_epoch)
 
         logging.getLogger(self.default_log_name).info(format_string)
+
+        return
+
+    def create_dataloader(self, cfg, train_dataset, valid_dataset):
+        pin_memory = cfg.TRAINER.DEVICE != 'cpu'
+        is_group = cfg.DATALOADER.get('GROUP_SAMPLER', False)
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
+            train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
+                                                                                          batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                                          rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
+                                                                                          world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
+                                                                                          num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                                                          collate_fn=self.collate_train_fn,
+                                                                                          pin_memory=pin_memory,
+                                                                                          is_group=is_group)
+        else:
+            train_data_loader = engine_data_loader.create_iterable_data_loader(train_dataset,
+                                                                               batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                               num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                                               collate_fn=self.collate_train_fn,
+                                                                               pin_memory=pin_memory,
+                                                                               is_group=is_group)
+
+        test_data_loader = engine_data_loader.create_data_loader(valid_dataset,
+                                                                 cfg.SOLVER.TEST_PER_BATCH,
+                                                                 cfg.DATALOADER.NUM_WORKERS,
+                                                                 collate_fn=self.collate_valid_fn,
+                                                                 pin_memory=pin_memory)
+        return train_data_loader, test_data_loader
+
+    def create_dataset(self, cfg) -> (Dataset, Dataset):
+        train_dataset = build_dataset(cfg.DATALOADER.TRAIN_DATA_SET)
+        valid_dataset = build_dataset(cfg.DATALOADER.VAL_DATA_SET)
 
         return train_dataset, valid_dataset
 
