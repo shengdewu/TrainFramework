@@ -10,6 +10,13 @@ from .import_scheduler import import_scheduler
 from .build import BUILD_MODEL_REGISTRY
 
 
+def lower(k):
+    new_k = k.lower()
+    if new_k.upper() != k:
+        new_k = k
+    return new_k
+
+
 @BUILD_MODEL_REGISTRY.register()
 class BaseModel(abc.ABC):
     """
@@ -55,7 +62,7 @@ class BaseModel(abc.ABC):
         op_type = optimizer_cfg.TYPE
         params = dict()
         for key, param in optimizer_cfg.PARAMS.items():
-            params[key.lower()] = param
+            params[lower(key)] = param
 
         cls = import_optimizer(op_type)
 
@@ -72,10 +79,10 @@ class BaseModel(abc.ABC):
             if isinstance(param, dict):
                 sub_param = dict()
                 for sk, sp in param.items():
-                    sub_param[sk.lower()] = sp
-                params[key.lower()] = sub_param
+                    sub_param[lower(sk)] = sp
+                params[lower(key)] = sub_param
             else:
-                params[key.lower()] = param
+                params[lower(key)] = param
 
         if op_type == 'LRMultiplierScheduler':
             params['max_iter'] = self.max_iter

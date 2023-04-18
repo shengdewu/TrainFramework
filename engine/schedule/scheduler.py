@@ -20,6 +20,13 @@ import types
 from importlib import import_module
 
 
+def upper(k):
+    new_k = k.upper()
+    if new_k.lower() != k:
+        new_k = k
+    return new_k
+
+
 class BaseScheduler:
     def __init__(self):
         return
@@ -160,16 +167,16 @@ class BaseScheduler:
         uppre_config = dict()
         for k, v in config.items():
             if isinstance(v, dict):
-                uppre_config[k.upper()] = self.dict2cfg(v, is_cfg)
+                uppre_config[upper(k)] = self.dict2cfg(v, is_cfg)
             elif isinstance(v, list):
                 if isinstance(v[0], dict):
-                    uppre_config[k.upper()] = list()
+                    uppre_config[upper(k)] = list()
                     for vv in v:
-                        uppre_config[k.upper()].append(self.dict2cfg(vv, is_cfg=False))
+                        uppre_config[upper(k)].append(self.dict2cfg(vv, is_cfg=False))
                 else:
-                    uppre_config[k.upper()] = v.copy()
+                    uppre_config[upper(k)] = v.copy()
             else:
-                uppre_config[k.upper()] = v
+                uppre_config[upper(k)] = v
         if is_cfg:
             uppre_config = CfgNode(init_dict=uppre_config)
         return uppre_config
