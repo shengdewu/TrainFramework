@@ -3,12 +3,51 @@
 ## 1. 继承BaseModel创建创基自己的模型
 ```python
 from engine.model.base_model import BaseModel
+from engine.model.build import BUILD_MODEL_REGISTRY
+import torch
+
+
+@BUILD_MODEL_REGISTRY.register()
 class MyModel(BaseModel):
     def __init__(self, cfg):
         super(MyModel, self).__init__(cfg)
-        #创建损失函数以及其他你需要的
-        self.your_loss = your_loss()
         return
+
+    def create_model(self, params) -> torch.nn.Module:
+        '''
+        :params 网络的参数 推荐dict类型
+        
+        eg: 
+        已有网络：
+        
+        class MyNetwork(torch.nn.Module):
+            def __init__(self, param1, param2):
+                super(MyNetwork, self).__init__()
+                return  
+                
+            def forward(self, x)
+                return
+                
+                
+        则 params = dict(
+            name=MyNetwork,  # 自己的网络名
+            param1=xxx,      #自己网络的参数
+            param2=xxx, 
+        )
+        
+
+        '''
+        kwargs = dict()
+        arch_name = ''
+        for k, v in params.items():
+            if k.lower() == 'name':
+                arch_name = v
+                continue
+            kwargs[k.lower()] = v
+            
+        model = create_my_network(kwargs)
+        
+        return model
 
     def run_step(self, data, *, epoch=None, **kwargs):
         """
@@ -17,19 +56,16 @@ class MyModel(BaseModel):
         :param kwargs: another args
         :return:
         """
-        #你的训练
-        #1. 取出输入数据和样本
         sample = data['input'].to(self.device)
         label = data['gt'].to(self.device)
 
-        #3. 模型输出
         logits = self.g_model(sample)
 
-        #4. 计算损失函数
-        total_loss = self.your_loss(logits, label)
+        #计算损失
+        total_loss = calculate(logits, label)
 
-        #5. 优化
         self.g_optimizer.zero_grad()
+
         total_loss.backward()
         self.g_optimizer.step()
 
@@ -40,34 +76,20 @@ class MyModel(BaseModel):
         :param data:
         :return:
         """
-        # 你的推理
+
         logits = self.g_model(data['input'].to(self.device))
-
-        return {'mask': mask, 'acc': acc}
-        
-    def create_g_model(self, cfg) -> torch.nn.Module:
-        #创建你的模型
-        model = create_your_model()
-        return model
-
-    def enable_distribute(self, cfg):
-        # 一般不需要重写，除非使用了Gan模型
-        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID >= 0:
-            logging.getLogger(__name__).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
-            self.g_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
-        elif cfg.TRAINER.PARADIGM.TYPE == 0:
-            logging.getLogger(__name__).info('launch model by parallel')
-            self.g_model = torch.nn.parallel.DataParallel(self.g_model)
-        else:
-            logging.getLogger(__name__).info('launch model by singal machine')
-        return   
+        return logits
 ```    
 
 ## 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法
 ```python
 from engine.trainer.trainer import BaseTrainer
+import logging
+from engine.trainer.build import BUILD_TRAINER_REGISTRY
+from engine.model.build import build_model
+from engine.data.build import build_dataset
 
+@BUILD_TRAINER_REGISTRY.register()
 class MyTrainer(BaseTrainer):
 
     def __init__(self, cfg):
@@ -75,77 +97,151 @@ class MyTrainer(BaseTrainer):
         return
 
     def create_dataset(self, cfg):
-        train_dataset = create_train_set() # 你自己的数据集
-        valid_dataset = create_valid_set() #
-
+        train_dataset = build_dataset(cfg.DATALOADER.TRAIN_DATA_SET)
+        valid_dataset = build_dataset(cfg.DATALOADER.VAL_DATA_SET)
         return train_dataset, valid_dataset
 
     def create_model(self, cfg):
-        #创建你的模型
-        return MyModel()
+        #创建 MyModel
+        return build_model(cfg)
 
+    def before_loop(self):
+        #训练前的一些处理
+        return
+    
     def after_loop(self):
-        #整个训练完成后你想要做的事
+        # 训练后的一些处理  
+        self.model.disable_train()      
         return
 
     def iterate_after(self, epoch, loss_dict):
-        #指定 CHECKPOINT_PERIOD 做的事情
+        #训练过程中的一些处理
         self.checkpoint.save(self.model, epoch)
         return
 
 ```  
 
-## 3. 继承BaseScheduler， 实现 lunch_func方法
+## 4. 定义自己的数据
+```python
+
+from engine.transforms.pipe import TransformCompose
+from engine.data.build import BUILD_DATASET_REGISTRY
+import torch
+
+
+@BUILD_DATASET_REGISTRY.register()
+class MyDataSet(torch.utils.data.Dataset):
+    def __init__(self, params, params2, transformers=None):
+        super(MyDataSet, self).__init__()
+        self.transformers = None
+        
+        # 数据增强
+        if transformers is not None:
+            self.transformers = TransformCompose(transformers)
+            
+        return
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, idx):
+        pass
+
+```
+
+## 5. 将上诉定义的包 导入到程序中，必须！！！ 否则注册不生效
+
+## 6. 定义训练入口, 开始训练
 ```python
 from engine.schedule.scheduler import BaseScheduler
-import MyTrainer
+from codes import *
 
-class MyScheduler(BaseScheduler):
-    def __init__(self):
-        super(AdaptiveScheduler, self).__init__()
-        return
-
-    def lunch_func(self, cfg, args):
-        trainer = MyTrainer(cfg)
-        trainer.resume_or_load(args.resume)
-        trainer.loop()
-        return
+if __name__ == '__main__':
+    BaseScheduler().schedule()
 ```
 
-## 4 开始你的训练流程
-```python
-    MyScheduler().schedule()
-```
 
-## 5 配置说明
+## 5 配置说明, 支持 python和yaml
 ```python
-DATALOADER: # 数据加载 包括 数据变化相关的配置放在此配置下
-  NUM_WORKERS: 15 #数据加载使用的进程数
-MODEL:
-  TRAINER:
-    MODEL: MyModel # 你的模型名
-  DEVICE: cuda
-  WEIGHTS: '' # 模型权重路径 用于预训练
-OUTPUT_DIR:  '' #模型、日志输出路径
-SOLVER:
-  CHECKPOINT_PERIOD: 5000 # 模型保存周期
-  LR_SCHEDULER: # 学习率调整方式
-    ENABLED: true # 是否启动学习率调整
-    GAMMA: 0.1
-    LR_SCHEDULER_NAME: WarmupCosineLR
-    STEPS:
-    - 100000
-    - 180000
-    - 240000
-    WARMUP_FACTOR: 0.01
-    WARMUP_ITERS: 500
-  MAX_ITER: 250000 # 训练迭代次数
-  MAX_KEEP: 30 # 最大保存的模型数量
-  OPTIMIZER: # 优化器配置
-    GENERATOR:
-      TYPE: 'AdamW' #优化器名 目前支持 pytorch自带的优化器
-      PARAMS: # 优化器参数
-        LR: 0.0001
-  TEST_PER_BATCH:  # 测试的batch size
-  TRAIN_PER_BATCH: 8 #训练的batch size
+
+transformer = [
+    dict(name='MyTransFormer',
+         param='my transformer param')
+]
+
+
+dataloader = dict(
+    num_workers=1,
+    train_data_set=dict(
+        name='MyDataset',
+        params1='my data set param',
+        transformer=transformer,
+    ),
+    val_data_set=dict(
+        name='MyDataset',
+        params1='my data set param',
+        transformer=transformer,
+    )
+)
+
+trainer = dict(
+    name='MyTrainer',
+    device='cuda',
+    weights='',
+    model=dict(
+        name='MyModel',
+        generator=dict(
+            name='NyNetwork',
+            param1='my network param',
+        )
+    ),
+    loss=[ # 不一定时这个形式，可以自定义设计
+        dict(name='MyLoss',
+             params='my loss param'
+             )
+    ]
+)
+
+lr_scheduler = dict(
+    enabled=True,
+    type='LRMultiplierScheduler',
+    params=dict(
+        lr_scheduler_param=dict(
+            name='WarmupCosineLR',
+            gamma=0.1,
+            steps=[40000, 80000, 160000, 19000],
+        ),
+        warmup_factor=0.01,
+        warmup_iters=1000
+    )
+)
+
+optimizer = dict(
+    type='SGD',
+    params=dict(
+        momentum=0.9,
+        lr=0.005,
+        weight_decay=5E-4,
+    ),
+    clip_gradients=dict(
+        enabled=False,
+    ),
+    g_step=1
+)
+
+solver = dict(
+    train_per_batch=8,
+    test_per_batch=2,
+    max_iter=200000,
+    max_keep=20,
+    checkpoint_period=5000,
+    generator=dict(
+        lr_scheduler=lr_scheduler,
+        optimizer=optimizer
+    ),
+)
+
+output_dir = '/output'
+output_log_name = 'log_name'
+
 ```
