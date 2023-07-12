@@ -92,7 +92,7 @@ class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
             warmup_factor,
             warmup_iters,
             lr_scheduler_param: dict,
-            max_iter: int,
+            max_iters: int,
             last_iter: int = -1,
             warmup_method='linear'
     ):
@@ -100,9 +100,9 @@ class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
         Args:
             optimizer, last_iter: See ``torch.optim.lr_scheduler._LRScheduler``.
                 ``last_iter`` is the same as ``last_epoch``.
-            max_iter: the total number of training iterations
+            max_iters: the total number of training iterations
         """
-        self._max_iter = max_iter
+        self.max_iters = max_iters
 
         name = lr_scheduler_param['name']
 
@@ -117,7 +117,7 @@ class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
             sched = MultiStepParamScheduler(
                 values=[lr_scheduler_param.get('gamma', 0.1) ** k for k in range(len(steps) + 1)],
                 milestones=steps,
-                num_updates=max_iter,
+                num_updates=max_iters,
             )
         elif name == "WarmupCosineLR":
             start_value = lr_scheduler_param.get('start_value', 1.0)
@@ -129,7 +129,7 @@ class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
         self._multiplier = WarmupParamScheduler(
             sched,
             warmup_factor,
-            min(warmup_iters / max_iter, 1.0),
+            min(warmup_iters / max_iters, 1.0),
             warmup_method,
         )
 
@@ -140,7 +140,7 @@ class LRMultiplierScheduler(torch.optim.lr_scheduler._LRScheduler):
         return {"base_lrs": self.base_lrs, "last_epoch": self.last_epoch}
 
     def get_lr(self) -> List[float]:
-        multiplier = self._multiplier(self.last_epoch / self._max_iter)
+        multiplier = self._multiplier(self.last_epoch / self.max_iters)
         return [base_lr * multiplier for base_lr in self.base_lrs]
 
 
@@ -245,6 +245,53 @@ class EmptyLRScheduler(torch.optim.lr_scheduler._LRScheduler):
 
     def step(self, epoch=None):
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
+
+
+class WarmupPolyLR(torch.optim.lr_scheduler._LRScheduler):
+    """
+    Poly learning rate schedule used to train DeepLab.
+    Paper: DeepLab: Semantic Image Segmentation with Deep Convolutional Nets,
+        Atrous Convolution, and Fully Connected CRFs.
+    """
+
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        max_iters: int,
+        warmup_factor: float = 0.001,
+        warmup_iters: int = 1000,
+        warmup_method: str = "linear",
+        last_epoch: int = -1,
+        power: float = 0.9,
+        constant_ending: float = 0.0,
+    ):
+        self.max_iters = max_iters
+        self.warmup_factor = warmup_factor
+        self.warmup_iters = warmup_iters
+        self.warmup_method = warmup_method
+        self.power = power
+        self.constant_ending = constant_ending
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self) -> List[float]:
+        warmup_factor = _get_warmup_factor_at_iter(
+            self.warmup_method, self.last_epoch, self.warmup_iters, self.warmup_factor
+        )
+        if self.constant_ending > 0 and warmup_factor == 1.0:
+            # Constant ending lr.
+            if (
+                math.pow((1.0 - self.last_epoch / self.max_iters), self.power)
+                < self.constant_ending
+            ):
+                return [base_lr * self.constant_ending for base_lr in self.base_lrs]
+        return [
+            base_lr * warmup_factor * math.pow((1.0 - self.last_epoch / self.max_iters), self.power)
+            for base_lr in self.base_lrs
+        ]
+
+    def _compute_values(self) -> List[float]:
+        # The new interface
+        return self.get_lr()
 
 
 def _get_warmup_factor_at_iter(

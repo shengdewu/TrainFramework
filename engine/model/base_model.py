@@ -2,9 +2,10 @@ import abc
 from typing import Iterator
 from yacs.config import CfgNode
 import torch
-from engine.slover import build_optimizer_with_gradient_clipping, LRMultiplierScheduler, EmptyLRScheduler
+from engine.slover import build_optimizer_with_gradient_clipping, EmptyLRScheduler
 import engine.checkpoint.functional as checkpoint_f
 import logging
+import engine.slover.lr_scheduler as engine_scheduler
 from .import_optimizer import import_optimizer
 from .import_scheduler import import_scheduler
 from .build import BUILD_MODEL_REGISTRY
@@ -84,9 +85,8 @@ class BaseModel(abc.ABC):
             else:
                 params[lower(key)] = param
 
-        if op_type == 'LRMultiplierScheduler':
-            params['max_iter'] = self.max_iter
-            cls = LRMultiplierScheduler
+        if hasattr(engine_scheduler, op_type):
+            cls = getattr(engine_scheduler, op_type)
         else:
             cls = import_scheduler(op_type)
         return cls(optimizer, **params)
