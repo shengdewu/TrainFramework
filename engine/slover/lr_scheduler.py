@@ -245,45 +245,46 @@ class EmptyLRScheduler(torch.optim.lr_scheduler._LRScheduler):
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 
 
-class WarmupPolyLR(torch.optim.lr_scheduler._LRScheduler):
+class WarmupPolynomialDecay(torch.optim.lr_scheduler._LRScheduler):
     """
     Poly learning rate schedule used to train DeepLab.
-    Paper: DeepLab: Semantic Image Segmentation with Deep Convolutional Nets,
-        Atrous Convolution, and Fully Connected CRFs.
     """
-
     def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        max_iter: int,
-        warmup_factor: float = 0.001,
-        warmup_iter: int = 1000,
-        warmup_method: str = "linear",
-        last_epoch: int = -1,
-        power: float = 0.9,
-        constant_ending: float = 0.0,
+            self,
+            optimizer: torch.optim.Optimizer,
+            max_iter: int,
+            end_lr=0.0001,
+            power=1.0,
+            last_epoch=-1,
+            warmup_factor: float = 0.001,
+            warmup_iter: int = 1000,
+            warmup_method: str = "linear",
     ):
+        self.end_lr = end_lr
+        assert (
+                power > 0.0
+        ), " 'power' must be greater than 0.0 so that the learning rate will decay."
+        self.power = power
         self.max_iter = max_iter
         self.warmup_factor = warmup_factor
         self.warmup_iter = warmup_iter
         self.warmup_method = warmup_method
-        self.power = power
-        self.constant_ending = constant_ending
         super().__init__(optimizer, last_epoch)
 
-    def get_lr(self) -> List[float]:
+    def get_lr(self):
         warmup_factor = _get_warmup_factor_at_iter(
             self.warmup_method, self.last_epoch, self.warmup_iter, self.warmup_factor
         )
-        if self.constant_ending > 0 and warmup_factor == 1.0:
-            # Constant ending lr.
-            if (
-                math.pow((1.0 - self.last_epoch / self.max_iter), self.power)
-                < self.constant_ending
-            ):
-                return [base_lr * self.constant_ending for base_lr in self.base_lrs]
+
+        if warmup_factor < 1:
+            return [
+                base_lr * warmup_factor * math.pow((1.0 - self.last_epoch / self.max_iter), self.power)
+                for base_lr in self.base_lrs
+            ]
+
         return [
-            base_lr * warmup_factor * math.pow((1.0 - self.last_epoch / self.max_iter), self.power)
+            ((base_lr - self.end_lr) * (1 - (self.last_epoch - self.warmup_iter) / (
+                        self.max_iter - self.warmup_iter)) ** self.power + self.end_lr)
             for base_lr in self.base_lrs
         ]
 
@@ -319,4 +320,3 @@ def _get_warmup_factor_at_iter(
         return warmup_factor * (1 - alpha) + alpha
     else:
         raise ValueError("Unknown warmup method: {}".format(method))
-
