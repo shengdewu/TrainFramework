@@ -259,6 +259,7 @@ class WarmupPolynomialDecay(torch.optim.lr_scheduler._LRScheduler):
             warmup_factor: float = 0.001,
             warmup_iter: int = 1000,
             warmup_method: str = "linear",
+            simple: bool = True
     ):
         self.end_lr = end_lr
         assert (
@@ -269,6 +270,7 @@ class WarmupPolynomialDecay(torch.optim.lr_scheduler._LRScheduler):
         self.warmup_factor = warmup_factor
         self.warmup_iter = warmup_iter
         self.warmup_method = warmup_method
+        self.simple = simple
         super().__init__(optimizer, last_epoch)
 
     def get_lr(self):
@@ -282,11 +284,16 @@ class WarmupPolynomialDecay(torch.optim.lr_scheduler._LRScheduler):
                 for base_lr in self.base_lrs
             ]
 
-        return [
-            ((base_lr - self.end_lr) * (1 - (self.last_epoch - self.warmup_iter) / (
-                        self.max_iter - self.warmup_iter)) ** self.power + self.end_lr)
-            for base_lr in self.base_lrs
-        ]
+        if self.simple:
+            return [base_lr * pow((1.0 - (self.last_epoch - self.warmup_iter) / (
+                        self.max_iter - self.warmup_iter)), 0.9) for base_lr in self.base_lrs]
+
+        else:
+            return [
+                ((base_lr - self.end_lr) * (1 - (self.last_epoch - self.warmup_iter) / (
+                            self.max_iter - self.warmup_iter)) ** self.power + self.end_lr)
+                for base_lr in self.base_lrs
+            ]
 
     def _compute_values(self) -> List[float]:
         # The new interface
