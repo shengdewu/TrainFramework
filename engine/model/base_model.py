@@ -9,6 +9,7 @@ import engine.slover.lr_scheduler as engine_scheduler
 from .import_optimizer import import_optimizer
 from .import_scheduler import import_scheduler
 from .build import BUILD_MODEL_REGISTRY
+from .ema import EMA
 
 
 def lower(k):
@@ -16,6 +17,19 @@ def lower(k):
     if new_k.upper() != k:
         new_k = k
     return new_k
+
+
+def ema_wrapper(func):
+    def ema_func(cls, data):
+        if hasattr(cls, cls.EMA_KEY):
+            getattr(cls, cls.EMA_KEY).store(cls.g_model.parameters())
+            getattr(cls, cls.EMA_KEY).copy(cls.g_model.parameters())
+            result = func(cls, data)
+            getattr(cls, cls.EMA_KEY).copy_back(cls.g_model.parameters())
+        else:
+            result = func(cls, data)
+        return result
+    return ema_func
 
 
 @BUILD_MODEL_REGISTRY.register()
@@ -31,6 +45,9 @@ class BaseModel(abc.ABC):
     8. may be create scheduler in constructer
     9. run_step and schedule in __call__
     """
+
+    EMA_KEY = 'ema'
+
     def __init__(self, cfg):
         """
         eg:
@@ -55,6 +72,7 @@ class BaseModel(abc.ABC):
         self.g_model = self.create_model(params=cfg.TRAINER.MODEL.get('GENERATOR', dict())).to(self.device)
         self.g_optimizer = self.create_optimizer(cfg.SOLVER.GENERATOR.OPTIMIZER, self.g_model.parameters())
         self.g_scheduler = self.create_scheduler(cfg.SOLVER.GENERATOR.LR_SCHEDULER, self.g_optimizer)
+        self.create_ema(cfg.SOLVER.get('EMA', dict()))
 
         logging.getLogger(self.default_log_name).info('create model {} with {}'.format(self.__class__.__name__, self.g_model))
         return
@@ -95,6 +113,22 @@ class BaseModel(abc.ABC):
     def create_model(self, params) -> torch.nn.Module:
         raise NotImplemented('the create_model must be implement')
 
+    def create_ema(self, params):
+        if not params.get('ENABLED', False):
+            return
+        assert hasattr(self, 'g_model')
+
+        kwargs = dict()
+        for k, v in params.items():
+            if k.lower() == 'enabled':
+                continue
+            kwargs[k.lower()] = v
+
+        ema = EMA(self.g_model.parameters(), **kwargs)
+        ema.to(self.device)
+        setattr(self, self.EMA_KEY, ema)
+        return
+
     @abc.abstractmethod
     def run_step(self, data, *, epoch=None, **kwargs):
         """
@@ -104,6 +138,10 @@ class BaseModel(abc.ABC):
         :return:
         """
         raise NotImplemented('the run_step must be implement')
+
+    @ema_wrapper
+    def generator_imp(self, data):
+        return self.generator(data)
 
     @abc.abstractmethod
     def generator(self, data):
@@ -123,11 +161,22 @@ class BaseModel(abc.ABC):
                 loss_dict = self.run_step(data, **kwargs)
                 self.g_scheduler.step(epoch)
         """
-        loss_dict = self.run_step(data=data, epoch=epoch, **kwargs)
-        self.g_scheduler.step(epoch)
+        if self.g_model.training:
+            loss = self.run_step(data=data, epoch=epoch, **kwargs)
 
-        loss_dict['learning_rate'] = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
-        return loss_dict
+            self.g_optimizer.zero_grad()
+            loss.backward()
+            self.g_optimizer.step()
+
+            if hasattr(self, self.EMA_KEY):
+                getattr(self, self.EMA_KEY).update(self.g_model.parameters())
+
+            self.g_scheduler.step(epoch)
+
+            lr = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
+            return {'total_loss': loss.detach().item(), 'lr': lr}
+        else:
+            return self.generator_imp(data)
 
     def enable_train(self):
         self.g_model.train()
@@ -140,6 +189,8 @@ class BaseModel(abc.ABC):
     def get_state_dict(self):
         state_dict = dict()
         state_dict['g_model'] = checkpoint_f.get_model_state_dict(self.g_model)
+        if hasattr(self, self.EMA_KEY):
+            state_dict[self.EMA_KEY] = getattr(self, self.EMA_KEY).state_dict()
         return state_dict
 
     def load_state_dict(self, state_dict: dict):
@@ -148,6 +199,8 @@ class BaseModel(abc.ABC):
         :return: 
         """""
         checkpoint_f.load_model_state_dict(self.g_model, state_dict['g_model'], log_name=self.default_log_name)
+        if hasattr(self, self.EMA_KEY) and self.EMA_KEY in state_dict.keys():
+            getattr(self, self.EMA_KEY).load_state_dict(state_dict[self.EMA_KEY])
         return
 
     def get_addition_state_dict(self):

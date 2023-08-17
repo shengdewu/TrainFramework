@@ -29,6 +29,7 @@ _C.SOLVER.TEST_PER_BATCH = 8
 _C.SOLVER.MAX_ITER = 90000
 _C.SOLVER.MAX_KEEP = 20
 _C.SOLVER.CHECKPOINT_PERIOD = 5000
+_C.SOLVER.EMA = CfgNode(init_dict={"ENABLED": False, "DECAY_RATE": 0.995}, new_allowed=True)
 
 _C.SOLVER.GENERATOR = CfgNode(new_allowed=True)
 _C.SOLVER.GENERATOR.LR_SCHEDULER = CfgNode(init_dict={"ENABLED": False}, new_allowed=True)
