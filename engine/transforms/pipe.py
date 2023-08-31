@@ -21,9 +21,9 @@ class TransformCompose:
                 raise TypeError('transform must be callable or a dict')
         return
 
-    def __call__(self, **kwargs):
+    def __call__(self, kwargs):
         for transformer in self.transformers:
-            kwargs = transformer(**kwargs)
+            kwargs = transformer(kwargs)
         return kwargs
 
     def __repr__(self):
