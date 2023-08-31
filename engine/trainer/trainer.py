@@ -61,7 +61,9 @@ class BaseTrainer:
         self.device = cfg.TRAINER.DEVICE
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.output = cfg.OUTPUT_DIR
-        self.train_data_loader = iter(train_data_loader) if not cfg.TRAINER.ENABLE_EPOCH_METHOD else train_data_loader
+        self.enable_epoch_method = cfg.TRAINER.ENABLE_EPOCH_METHOD
+
+        self.train_data_loader = iter(train_data_loader) if not self.enable_epoch_method else train_data_loader
         self.test_data_loader = test_data_loader
 
         total_data_per_epoch = len(train_dataset) / cfg.SOLVER.TRAIN_PER_BATCH
@@ -121,9 +123,17 @@ class BaseTrainer:
 
         self.model.enable_train()
         for epoch in range(self.start_iter, self.max_iter):
-            data = next(self.train_data_loader)
-            loss_dict = self.model(data, epoch=epoch)
-            self.iterate_after(epoch, loss_dict)
+            if self.enable_epoch_method:
+                loss_dict = dict()
+                for iteration, data in enumerate(self.train_data_loader):
+                    loss_dict = self.model(data, epoch=epoch)
+                self.iterate_after(epoch, loss_dict)
+                self.checkpoint.save(self.model, epoch)
+            else:
+                data = next(self.train_data_loader)
+                loss_dict = self.model(data, epoch=epoch)
+                self.iterate_after(epoch, loss_dict)
+                self.checkpoint.save(self.model, epoch)
 
         self.checkpoint.save(self.model, self.max_iter)
 
