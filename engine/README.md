@@ -64,12 +64,7 @@ class MyModel(BaseModel):
         #计算损失
         total_loss = calculate(logits, label)
 
-        self.g_optimizer.zero_grad()
-
-        total_loss.backward()
-        self.g_optimizer.step()
-
-        return {'total_loss': total_loss.detach().item()}
+        return total_loss
 
     def generator(self, data):
         """
@@ -127,8 +122,6 @@ class MyTrainer(BaseTrainer):
 from engine.transforms.pipe import TransformCompose
 from engine.data.build import BUILD_DATASET_REGISTRY
 import torch
-
-
 @BUILD_DATASET_REGISTRY.register()
 class MyDataSet(torch.utils.data.Dataset):
     def __init__(self, params, params2, transformers=None):
