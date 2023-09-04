@@ -34,6 +34,12 @@ class BaseTrainer:
 
     def __init__(self, cfg):
         self.default_log_name = cfg.OUTPUT_LOG_NAME
+        self.start_iter = 0
+        self.model_path = cfg.TRAINER.WEIGHTS
+        self.device = cfg.TRAINER.DEVICE
+        self.max_iter = cfg.SOLVER.MAX_ITER
+        self.output = cfg.OUTPUT_DIR
+        self.enable_epoch_method = cfg.TRAINER.ENABLE_EPOCH_METHOD
 
         self.model = self.create_model(cfg)
         self.model.enable_train()
@@ -54,29 +60,27 @@ class BaseTrainer:
         self.set_collate_fn(cfg)
 
         train_dataset, valid_dataset = self.create_dataset(cfg)
-        train_data_loader, test_data_loader = self.create_dataloader(cfg, train_dataset, valid_dataset)
-
-        self.start_iter = 0
-        self.model_path = cfg.TRAINER.WEIGHTS
-        self.device = cfg.TRAINER.DEVICE
-        self.max_iter = cfg.SOLVER.MAX_ITER
-        self.output = cfg.OUTPUT_DIR
-        self.enable_epoch_method = cfg.TRAINER.ENABLE_EPOCH_METHOD
-
-        self.train_data_loader = iter(train_data_loader) if not self.enable_epoch_method else train_data_loader
-        self.test_data_loader = test_data_loader
-
         total_data_per_epoch = len(train_dataset) / cfg.SOLVER.TRAIN_PER_BATCH
+        if self.enable_epoch_method:
+            train_data_loader, test_data_loader = self.create_dataloader(cfg, train_dataset, valid_dataset)
+            actual_epoch = self.max_iter
+        else:
+            train_data_loader, test_data_loader = self.create_iterable_dataloader(cfg, train_dataset, valid_dataset)
+            train_data_loader = iter(train_data_loader)
+            actual_epoch = self.max_iter / total_data_per_epoch
+
+        self.train_data_loader = train_data_loader
+        self.test_data_loader = test_data_loader
 
         format_string = 'create train dataset {}\n'.format(train_dataset)
         format_string += 'create valid dataset {}\n'.format(valid_dataset)
-        format_string += 'there are {} data in one epoch and actually trained for {} epoch'.format(total_data_per_epoch, cfg.SOLVER.MAX_ITER / total_data_per_epoch)
+        format_string += 'there are {} data in one epoch and actually trained for {} epoch'.format(total_data_per_epoch, actual_epoch)
 
         logging.getLogger(self.default_log_name).info(format_string)
 
         return
 
-    def create_dataloader(self, cfg, train_dataset, valid_dataset):
+    def create_iterable_dataloader(self, cfg, train_dataset, valid_dataset):
         pin_memory = cfg.TRAINER.DEVICE != 'cpu'
         is_group = cfg.DATALOADER.get('GROUP_SAMPLER', False)
         if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
@@ -103,6 +107,31 @@ class BaseTrainer:
                                                                  pin_memory=pin_memory)
         return train_data_loader, test_data_loader
 
+    def create_dataloader(self, cfg, train_dataset, valid_dataset):
+        pin_memory = cfg.TRAINER.DEVICE != 'cpu'
+        if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
+            train_data_loader = engine_data_loader.create_distribute_data_loader(train_dataset,
+                                                                                 batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                                 rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
+                                                                                 world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
+                                                                                 num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                                                 collate_fn=self.collate_train_fn,
+                                                                                 pin_memory=pin_memory)
+        else:
+            train_data_loader = torch.utils.data.DataLoader(train_dataset,
+                                                            batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                            num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                            shuffle=True,
+                                                            drop_last=False,
+                                                            pin_memory=pin_memory)
+
+        test_data_loader = torch.utils.data.DataLoader(valid_dataset,
+                                                       cfg.SOLVER.TEST_PER_BATCH,
+                                                       num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                       collate_fn=self.collate_valid_fn,
+                                                       pin_memory=pin_memory)
+        return train_data_loader, test_data_loader
+
     def create_dataset(self, cfg) -> (Dataset, Dataset):
         train_dataset = build_dataset(cfg.DATALOADER.TRAIN_DATA_SET)
         valid_dataset = build_dataset(cfg.DATALOADER.VAL_DATA_SET)
@@ -127,13 +156,12 @@ class BaseTrainer:
                 loss_dict = dict()
                 for iteration, data in enumerate(self.train_data_loader):
                     loss_dict = self.model(data, epoch=epoch)
-                self.iterate_after(epoch, loss_dict)
-                self.checkpoint.save(self.model, epoch)
             else:
                 data = next(self.train_data_loader)
                 loss_dict = self.model(data, epoch=epoch)
-                self.iterate_after(epoch, loss_dict)
-                self.checkpoint.save(self.model, epoch)
+
+            self.iterate_after(epoch, loss_dict)
+            self.checkpoint.save(self.model, epoch)
 
         self.checkpoint.save(self.model, self.max_iter)
 
@@ -144,7 +172,6 @@ class BaseTrainer:
         pass
 
     def iterate_after(self, epoch, loss_dict):
-        self.checkpoint.save(self.model, epoch)
         if int(epoch + 0.5) % self.checkpoint.check_period == 0:
             logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
         return
