@@ -203,15 +203,12 @@ class RandomAffine:
             height = img.shape[0]
             width = img.shape[1]
             # Rotation
-            rotation_degree = random.uniform(-self.max_rotate_degree,
-                                             self.max_rotate_degree)
-            rotation_matrix = self._get_rotation_matrix(rotation_degree)
+            rotation_degree = random.uniform(-self.max_rotate_degree, self.max_rotate_degree)
+            rotation_matrix = self._get_rotation_matrix(rotation_degree, width / 2, height / 2)
 
             # Translation
-            trans_x = random.uniform(-self.max_translate_ratio,
-                                     self.max_translate_ratio) * width
-            trans_y = random.uniform(-self.max_translate_ratio,
-                                     self.max_translate_ratio) * height
+            trans_x = random.uniform(-self.max_translate_ratio, self.max_translate_ratio) * width
+            trans_y = random.uniform(-self.max_translate_ratio, self.max_translate_ratio) * height
 
             translate_matrix = self._get_translation_matrix(trans_x, trans_y)
 
@@ -338,11 +335,12 @@ class RandomAffine:
         return wh_valid_idx & area_valid_idx & aspect_ratio_valid_idx
 
     @staticmethod
-    def _get_rotation_matrix(degree):
+    def _get_rotation_matrix(degree, cx=0, cy=0):
         radian = math.radians(degree)
         rotation_matrix = np.array(
-            [[np.cos(radian), -np.sin(radian), 0.],
-             [np.sin(radian), np.cos(radian), 0.], [0., 0., 1.]],
+            [[np.cos(radian), -np.sin(radian), -cx * np.cos(radian) + cy * np.sin(radian) + cx],
+             [np.sin(radian), np.cos(radian), -cx * np.sin(radian) - cy * np.cos(radian) + cy],
+             [0., 0., 1.]],
             dtype=np.float32)
         return rotation_matrix
 
@@ -1003,7 +1001,7 @@ class RandomCompress(BasicColorTransform):
         if not low_thresh_quality_assert <= quality_upper <= 100:
             raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
 
-        self.quality = [int(v) for v in F.range_float(quality_lower, quality_upper, quality_step, quality_upper+quality_lower)]
+        self.quality = [int(v) for v in F.range_float(quality_lower, quality_upper, quality_step, quality_upper + quality_lower)]
 
         self.img_type = f'.{self.WEBP}' if compression_type == self.WEBP else f'.{self.JPEG}'
         return
@@ -1035,6 +1033,7 @@ class RandomColorJitter:
                  hue_limit=0.1, hue_p=0.1,
                  blur_limit=(3, 7), sigma_limit=0, blur_p=0.2,
                  gamma_limit=(0.3, 2.0), gamma_p=0.5,
+                 clahe_limit=4.0, clahe_p=0.2,
                  ):
 
         self.jitter = [
@@ -1044,6 +1043,7 @@ class RandomColorJitter:
             RandomHue(hue_limit, hue_p),
             RandomGaussianBlur(blur_limit, sigma_limit, blur_p),
             RandomGamma(gamma_limit, gamma_p),
+            RandomCLAHE(clip_limit=clahe_limit, p=clahe_p),
         ]
 
         return
