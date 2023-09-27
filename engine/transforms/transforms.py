@@ -15,8 +15,9 @@ __all__ = [
     'RandomCrop',
     'RandomToneCurve',
     'RandomBrightnessContrast',
-    'GaussianBlur',
+    'RandomGaussianBlur',
     'ToGray',
+    'Normalize',
     'RandomColorJitter',
     'RandomBrightness',
     'RandomContrast',
@@ -24,6 +25,8 @@ __all__ = [
     'RandomHue',
     'RandomGamma',
     'RandomCLAHE',
+    'RandomCompress',
+    'RandomSharpen'
 ]
 
 
@@ -498,7 +501,7 @@ class RandomCrop:
 
     def __init__(self, min_crop_ratio, max_crop_ratio, crop_step=0.1, p=1., clip_border=True):
         assert 0 < min_crop_ratio <= max_crop_ratio <= 1
-        self.crop_ratio = F.range_float(1-max_crop_ratio, 1-min_crop_ratio, crop_step, exclude=max_crop_ratio + 1)
+        self.crop_ratio = F.range_float(1 - max_crop_ratio, 1 - min_crop_ratio, crop_step, exclude=max_crop_ratio + 1)
         self.p = p
         self.clip_border = clip_border
         return
@@ -598,9 +601,9 @@ class BasicColorTransform(ABC):
 
 
 @BUILD_TRANSFORMER_REGISTRY.register()
-class GaussianBlur(BasicColorTransform):
+class RandomGaussianBlur(BasicColorTransform):
     def __init__(self, blur_limit=(3, 7), sigma_limit=0, p: float = 0.5):
-        super(GaussianBlur, self).__init__(p)
+        super(RandomGaussianBlur, self).__init__(p)
         self.blur_limit = F.to_tuple(blur_limit, 0)
         self.sigma_limit = F.to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
 
@@ -827,8 +830,8 @@ class RandomGamma(BasicColorTransform):
 
 
 @BUILD_TRANSFORMER_REGISTRY.register()
-class Sharpen(BasicColorTransform):
-    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5, target_names=('image',)):
+class RandomSharpen(BasicColorTransform):
+    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5):
         """
 
         :param alpha: range to choose the visibility of the sharpened image. At 0, only the original image is
@@ -836,7 +839,7 @@ class Sharpen(BasicColorTransform):
         :param lightness:  range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
         :param p:
         """
-        super(Sharpen, self).__init__(p, )
+        super(RandomSharpen, self).__init__(p, )
         self.alpha = self.__check_values(F.to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
         self.lightness = self.__check_values(F.to_tuple(lightness, 0.0), name="lightness")
 
@@ -890,8 +893,41 @@ class ToGray(BasicColorTransform):
         return F.to_gray(img)
 
     def __repr__(self):
-        format_string = self.__class__.__name__
-        format_string += 'target_names={})'.format(self.target_names)
+        return self.__class__.__name__
+
+
+@BUILD_TRANSFORMER_REGISTRY.register()
+class Normalize(BasicColorTransform):
+    """
+    Args:
+        mean (list of float): mean values for each channel.
+        std  (list of float): std values for each channel.
+        max_pixel_value:
+    Targets:
+        image [np.float]
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 mean=(0.485, 0.456, 0.406),
+                 std=(0.229, 0.224, 0.225),
+                 max_pixel_value=255):
+        super(Normalize, self).__init__(p=1)
+        self.mean = mean
+        self.std = std
+        self.max_pixel_value = max_pixel_value
+        return
+
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+        return F.normalize(img, self.mean, self.std, self.max_pixel_value)
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + '('
+        format_string += 'std={}, '.format(self.std)
+        format_string += 'mean={}, '.format(self.mean)
+        format_string += 'max_pixel_value={})'.format(self.max_pixel_value)
         return format_string
 
 
@@ -911,6 +947,7 @@ class RandomCLAHE(BasicColorTransform):
     Image types:
         uint8
     """
+
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
         super(RandomCLAHE, self).__init__(p)
         self.clip_limit = F.to_tuple(clip_limit, 1)
@@ -936,6 +973,60 @@ class RandomCLAHE(BasicColorTransform):
 
 
 @BUILD_TRANSFORMER_REGISTRY.register()
+class RandomCompress(BasicColorTransform):
+    """Decreases image quality by Jpeg, WebP compression of an image.
+
+    Args:
+        quality_lower (float): lower bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_upper (float): upper bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
+            Default: ImageCompressionType.JPEG
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+    JPEG = 'jpg'
+    WEBP = 'webp'
+
+    def __init__(self, quality_lower=99, quality_upper=100, quality_step=1, compression_type='jpg', p=0.5):
+        super(RandomCompress, self).__init__(p=p)
+        assert compression_type in [self.JPEG, self.WEBP], f'{compression_type} not in [jpg, webp]'
+
+        low_thresh_quality_assert = 1 if compression_type == self.WEBP else 0
+        if not low_thresh_quality_assert <= quality_lower <= 100:
+            raise ValueError("Invalid quality_lower. Got: {}".format(quality_lower))
+        if not low_thresh_quality_assert <= quality_upper <= 100:
+            raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
+
+        self.quality = [int(v) for v in F.range_float(quality_lower, quality_upper, quality_step, quality_upper+quality_lower)]
+
+        self.img_type = f'.{self.WEBP}' if compression_type == self.WEBP else f'.{self.JPEG}'
+        return
+
+    def apply(self, img, **params):
+        if not F.is_rgb_image(img) and not F.is_rgba_image(img) and not F.is_grayscale_image(img):
+            print("Compress transformation expects 1-channel or 3-channel, 4-channel images.")
+            return img
+
+        return F.image_compression(img, params['quality'], self.img_type)
+
+    def get_params(self, kwargs):
+        return {'quality': random.choice(self.quality)}
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + '('
+        format_string += 'quality={}, '.format(self.quality)
+        format_string += 'compression_type={}, '.format(self.img_type)
+        format_string += 'p={})'.format(self.p)
+        return format_string
+
+
+@BUILD_TRANSFORMER_REGISTRY.register()
 class RandomColorJitter:
     def __init__(self,
                  brightness_limit=0.2, brightness_p=0.5,
@@ -947,12 +1038,12 @@ class RandomColorJitter:
                  ):
 
         self.jitter = [
-            RandomBrightness(brightness_limit, brightness_p, ),
-            RandomContrast(contrast_limit, contrast_p, ),
-            RandomSaturation(saturation_limit, saturation_p, ),
-            RandomHue(hue_limit, hue_p, ),
-            GaussianBlur(blur_limit, sigma_limit, blur_p, ),
-            RandomGamma(gamma_limit, gamma_p, ),
+            RandomBrightness(brightness_limit, brightness_p),
+            RandomContrast(contrast_limit, contrast_p),
+            RandomSaturation(saturation_limit, saturation_p),
+            RandomHue(hue_limit, hue_p),
+            RandomGaussianBlur(blur_limit, sigma_limit, blur_p),
+            RandomGamma(gamma_limit, gamma_p),
         ]
 
         return

@@ -10,6 +10,7 @@ from .import_optimizer import import_optimizer
 from .import_scheduler import import_scheduler
 from .build import BUILD_MODEL_REGISTRY
 from .ema import EMA
+from .build import build_network
 
 
 def lower(k):
@@ -109,9 +110,8 @@ class BaseModel(abc.ABC):
             cls = import_scheduler(op_type)
         return cls(optimizer, **params)
 
-    @abc.abstractmethod
     def create_model(self, params) -> torch.nn.Module:
-        raise NotImplemented('the create_model must be implement')
+        return build_network(params)
 
     def create_ema(self, params):
         if not params.get('ENABLED', False):

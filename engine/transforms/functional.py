@@ -58,6 +58,10 @@ def is_rgb_image(image: np.ndarray) -> bool:
     return len(image.shape) == 3 and image.shape[-1] == 3
 
 
+def is_rgba_image(image: np.ndarray) -> bool:
+    return len(image.shape) == 3 and image.shape[-1] == 4
+
+
 def _is_numpy_image(img: np.ndarray) -> bool:
     return img.ndim in {2, 3}
 
@@ -444,3 +448,91 @@ def find_inside_pts(pts, img_h, img_w):
     inside_inds = (pts[:, 0] < img_w) & (pts[:, 0] > 0) \
                   & (pts[:, 1] < img_h) & (pts[:, 1] > 0)
     return inside_inds
+
+
+def normalize(img: np.ndarray, mean, std, max_pixel_value):
+    assert img.ndim == 3 and img.shape[-1] == 3
+    assert img.dtype in [np.dtype("uint8"), np.dtype("uint16"), np.dtype("uint32")]
+
+    mean = np.array(mean, dtype=np.float32)
+    if mean.ndim == 1:
+        mean = np.reshape(mean, (1, 1, -1))
+    std = np.array(std, dtype=np.float32)
+    denominator = np.reciprocal(std, dtype=np.float32)
+    if denominator.ndim == 1:
+        denominator = np.reshape(denominator, (1, 1, -1))
+
+    if np.max(mean) > 1:
+        '''
+        when
+        mean = [125, 125, 125]
+        std = [125, 125, 125]
+        then 
+        the mean and std act directly on image
+        
+        eg 
+        the img is normalized to [-1, 1]
+        '''
+        img = img.astype(np.float32)
+    else:
+        max_value = MAX_VALUES_BY_DTYPE.get(img.dtype)
+        assert abs(max_pixel_value - max_value) < 1e-3, f'max_value: {max_pixel_value} not match type {img.dtype}'
+        img = img.astype(np.float32) / max_pixel_value
+
+    img -= mean
+    img *= denominator
+    return img
+
+
+def from_float(img, dtype, max_value=None):
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+        except KeyError:
+            raise RuntimeError(
+                "Can't infer the maximum value for dtype {}. You need to specify the maximum value manually by "
+                "passing the max_value argument".format(dtype)
+            )
+    return (img * max_value).astype(dtype)
+
+
+def to_float(img, max_value=None):
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+        except KeyError:
+            raise RuntimeError(
+                "Can't infer the maximum value for dtype {}. You need to specify the maximum value manually by "
+                "passing the max_value argument".format(img.dtype)
+            )
+    return img.astype("float32") / max_value
+
+
+def image_compression(img, quality, image_type):
+    if image_type in [".jpeg", ".jpg"]:
+        quality_flag = cv2.IMWRITE_JPEG_QUALITY
+    elif image_type == ".webp":
+        quality_flag = cv2.IMWRITE_WEBP_QUALITY
+    else:
+        raise NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        print(
+            "Image compression augmentation "
+            "is most effective with uint8 inputs, "
+            "{} is used as input.".format(input_dtype),
+        )
+        img = from_float(img, dtype=np.dtype("uint8"))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for image augmentation".format(input_dtype))
+
+    _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
+    img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+
+    if needs_float:
+        img = to_float(img, max_value=255)
+    return img
