@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple, Callable, Union
+from torch import Tensor
 from .build import build_loss
 
 
@@ -29,10 +30,10 @@ class LossCompose:
                 raise TypeError('loss must be callable or a dict')
         return
 
-    def __call__(self, x, gt):
-        score = self.losses[0](x, gt)
+    def __call__(self, loss_input: Union[List[Tensor], Tuple[Tensor]]):
+        score = self.losses[0](*loss_input)
         for i in range(1, len(self.losses)):
-            score += self.losses[i](x, gt)
+            score += self.losses[i](*loss_input)
         return score
 
     def __repr__(self):

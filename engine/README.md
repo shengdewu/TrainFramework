@@ -4,6 +4,8 @@
 ```python
 from engine.model.base_model import BaseModel
 from engine.model.build import BUILD_MODEL_REGISTRY
+from engine.loss.pipe import LossKeyCompose
+from engine.loss.pipe import LossCompose
 import torch
 
 
@@ -11,138 +13,113 @@ import torch
 class MyModel(BaseModel):
     def __init__(self, cfg):
         super(MyModel, self).__init__(cfg)
+
+        # 参见 engine/loss/README.md
+        loss_cfg = cfg.TRAINER.LOSS
+        if isinstance(loss_cfg, list):
+            self.loss = LossCompose(loss_cfg)
+        else:
+            self.loss = LossKeyCompose(loss_cfg)
         return
 
     def create_model(self, params) -> torch.nn.Module:
-        '''
-        :params 网络的参数 推荐dict类型
-        
-        eg: 
-        已有网络：
-        
-        class MyNetwork(torch.nn.Module):
-            def __init__(self, param1, param2):
-                super(MyNetwork, self).__init__()
-                return  
-                
-            def forward(self, x)
-                return
-                
-                
-        则 params = dict(
-            name=MyNetwork,  # 自己的网络名
-            param1=xxx,      #自己网络的参数
-            param2=xxx, 
-        )
-        
-
-        '''
-        kwargs = dict()
-        arch_name = ''
-        for k, v in params.items():
-            if k.lower() == 'name':
-                arch_name = v
-                continue
-            kwargs[k.lower()] = v
-            
-        model = create_my_network(kwargs)
-        
-        return model
+        """
+        根据自身情况考虑是否实现，推荐使用
+        """
+        return
 
     def run_step(self, data, *, epoch=None, **kwargs):
         """
-        :param data: type is dict
-        :param epoch:
-        :param kwargs: another args
-        :return:
+        此方法必须实现
         """
-        sample = data['input'].to(self.device)
-        label = data['gt'].to(self.device)
+        input_data = data['input_data'].to(self.device, non_blocking=True)
+        target_data = data['target_data'].to(self.device, non_blocking=True)
 
-        logits = self.g_model(sample)
+        fake_data = self.g_model(input_data)
+        
+        # 参见 engine/loss/README.md
+        loss = self.loss((fake_data, target_data))
 
-        #计算损失
-        total_loss = calculate(logits, label)
-
-        return total_loss
+        return loss
 
     def generator(self, data):
         """
-        :param data:
-        :return:
+        此方法必须实现
         """
+        scores = self.g_model(data.to(self.device, non_blocking=True))
 
-        logits = self.g_model(data['input'].to(self.device))
-        return logits
+        return scores
 ```    
 
 ## 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法
 ```python
 from engine.trainer.trainer import BaseTrainer
-import logging
 from engine.trainer.build import BUILD_TRAINER_REGISTRY
-from engine.model.build import build_model
-from engine.data.build import build_dataset
+
 
 @BUILD_TRAINER_REGISTRY.register()
 class MyTrainer(BaseTrainer):
-
+    """
+    可以不实现，如果不关心中途结果
+    """
     def __init__(self, cfg):
         super(MyTrainer, self).__init__(cfg)
         return
 
-    def create_dataset(self, cfg):
-        train_dataset = build_dataset(cfg.DATALOADER.TRAIN_DATA_SET)
-        valid_dataset = build_dataset(cfg.DATALOADER.VAL_DATA_SET)
-        return train_dataset, valid_dataset
-
-    def create_model(self, cfg):
-        #创建 MyModel
-        return build_model(cfg)
-
-    def before_loop(self):
-        #训练前的一些处理
-        return
-    
     def after_loop(self):
-        # 训练后的一些处理  
-        self.model.disable_train()      
+        """
+        训练的后处理
+        """
         return
 
     def iterate_after(self, epoch, loss_dict):
-        #训练过程中的一些处理
-        self.checkpoint.save(self.model, epoch)
+        """
+        训练的中的处理
+        """
         return
-
 ```  
 
 ## 4. 定义自己的数据
 ```python
-
-from engine.transforms.pipe import TransformCompose
+from engine.data.dataset import EngineDataSet
 from engine.data.build import BUILD_DATASET_REGISTRY
-import torch
+import engine.transforms.functional as F
+import cv2
+
+
+__all__ = [
+    'MyDataset'
+]
+
+
 @BUILD_DATASET_REGISTRY.register()
-class MyDataSet(torch.utils.data.Dataset):
-    def __init__(self, params, params2, transformers=None):
-        super(MyDataSet, self).__init__()
-        self.transformers = None
-        
-        # 数据增强
-        if transformers is not None:
-            self.transformers = TransformCompose(transformers)
-            
+class MyDataset(EngineDataSet):
+ 
+    def __init__(self, my_param, transformer=None):
+        super(MyDataset, self).__init__(transformer)
         return
 
-    def __len__(self):
-        return len(self.paths)
+    def __getitem__(self, index):
+        img_path, target_data = self.dataset[index]
+        img = cv2.cvtColor(cv2.imread(img_path, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
 
-    def __getitem__(self, idx):
-        pass
+        results = dict()
+        results['img'] = img
+        results['img_shape'] = img.shape[:2]
+        results['ori_shape'] = results['img_shape']
+        results['img_fields'] = ['img']
+        results['color_fiedls'] = ['img']
+
+        results = self.transformate(results)
+
+        return {'input_data': F.to_tensor(results['img']), 'target_data': target_data}
+
+    def __len__(self):
+        return len(self.dataset)
 
 ```
 
-## 5. 将上诉定义的包 导入到程序中，必须！！！ 否则注册不生效
+## 5. 将上诉定义的包必须导入到程序中，必须！！！ 否则注册不生效
 
 ## 6. 定义训练入口, 开始训练
 ```python
@@ -157,84 +134,126 @@ if __name__ == '__main__':
 ## 5 配置说明, 支持 python和yaml
 ```python
 
-transformer = [
-    dict(name='MyTransFormer',
-         param='my transformer param')
-]
-
-
 dataloader = dict(
-    num_workers=1,
+    num_workers=8,
     train_data_set=dict(
-        name='MyDataset',
-        params1='my data set param',
-        transformer=transformer,
+        name='MyDataset',  # 训练数据名，以下使其初始化参数
+        my_data_param='my_data_param',
+        transformer=[
+            dict(
+                name='RandomFlip',
+                direction=['horizontal', 'vertical', 'diagonal'],
+                p=0.5
+            ),
+            dict(
+                name='Resize',
+                target_size=256,
+                interpolation='INTER_LINEAR',
+                keep_ratio=False,
+                clip_border=True,
+            ),
+            dict(
+                name='RandomColorJitter',
+                brightness_limit=[0.6, 1.2],
+                brightness_p=0.6,
+                contrast_limit=[0.6, 1.4],
+                contrast_p=0.6,
+                saturation_limit=[0.6, 1.4],
+                saturation_p=0.5,
+                hue_limit=[-0.1, 0.1],
+                hue_p=0.05,
+                blur_limit=[3, 7],
+                blur_p=0.2,
+                gamma_limit=[0.3, 3.0],
+                gamma_p=0.1,
+            )
+        ]
     ),
     val_data_set=dict(
         name='MyDataset',
-        params1='my data set param',
-        transformer=transformer,
+        my_data_param='my_data_param',
+        transformer=[
+            dict(
+                name='Resize',
+                target_size=256,
+                interpolation='INTER_LINEAR',
+                keep_ratio=False,
+                clip_border=True,
+            ),
+        ]
     )
 )
 
 trainer = dict(
-    name='MyTrainer',
+    name='MyTrainer', #用用户自定义训练器名
     device='cuda',
-    weights='',
+    weights='', # 预训练模型路径
     model=dict(
-        name='MyModel',
+        name='MyModel', #用户自定义模型名
         generator=dict(
-            name='NyNetwork',
-            param1='my network param',
-        )
+            name='MyNetwork', #用户自定义的网络名
+            my_network_param='my_network_param'
+        ),
     ),
-    loss=[ # 不一定时这个形式，可以自定义设计
-        dict(name='MyLoss',
-             params='my loss param'
-             )
+    # 1.
+    loss=dict(
+        loss1=[
+            dict(name='CrossEntropyLoss', param=dict(lambda_weight=10.))
+        ],
+        loss2=[
+            dict(name='CrossEntropyLoss', param=dict(lambda_weight=1.0), input_name=['input_tensor', 'target_tensor'])
+        ]
+    )
+    # 2
+    loss = [
+        dict(name='CrossEntropyLoss')
     ]
 )
 
-lr_scheduler = dict(
-    enabled=True,
-    type='LRMultiplierScheduler',
-    params=dict(
-        lr_scheduler_param=dict(
-            name='WarmupCosineLR',
-            gamma=0.1,
-            steps=[40000, 80000, 160000, 19000],
-        ),
-        warmup_factor=0.01,
-        warmup_iters=1000
-    )
-)
+enable_ema = True
+if enable_ema:
+    trainer['model']['ema'] = dict(
+        enable=True,  # gender enable ema
+        decay_rate=0.995)
 
-optimizer = dict(
-    type='SGD',
-    params=dict(
-        momentum=0.9,
-        lr=0.005,
-        weight_decay=5E-4,
-    ),
-    clip_gradients=dict(
-        enabled=False,
-    ),
-    g_step=1
-)
-
+max_iter = 250000
 solver = dict(
     train_per_batch=8,
-    test_per_batch=2,
-    max_iter=200000,
+    test_per_batch=8,
+    max_iter=max_iter,
     max_keep=20,
     checkpoint_period=5000,
     generator=dict(
-        lr_scheduler=lr_scheduler,
-        optimizer=optimizer
+        lr_scheduler=dict(
+            enabled=True,
+            type='LRMultiplierScheduler',
+            params=dict(
+                lr_scheduler_param=dict(
+                    name='WarmupMultiStepLR',
+                    gamma=0.1,
+                    steps=[40000, 120000, 180000, 240000],
+                ),
+                max_iter=max_iter,
+                warmup_factor=0.01,
+                warmup_iter=500,
+                warmup_method='linear'
+            )
+        ),
+        optimizer=dict(
+            type='Adam',
+            params=dict(
+                lr=0.01,
+                weight_decay=1e-6,
+            ),
+            clip_gradients=dict(
+                enabled=False,
+            ),
+            g_step=1
+        )
     ),
 )
+output_dir = '/data'
+output_log_name = 'my-log'
 
-output_dir = '/output'
-output_log_name = 'log_name'
 
 ```
