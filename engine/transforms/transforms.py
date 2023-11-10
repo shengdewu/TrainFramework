@@ -44,6 +44,8 @@ class Resize:
         self.is_padding = is_padding
         self.clip_border = clip_border
         self.interpolation = F.INTER_CV_TYPE.get(interpolation, F.INTER_CV_TYPE['INTER_LINEAR'])
+        if not self.keep_ratio:
+            self.is_padding = False
         return
 
     def _get_new_size(self, target_size, results):
@@ -386,6 +388,7 @@ class RandomFlip:
         valid_directions = ['horizontal', 'vertical', 'diagonal']
         if isinstance(direction, str):
             assert direction in valid_directions
+            direction = [direction]
         elif isinstance(direction, list):
             assert set(direction).issubset(set(valid_directions))
         else:
