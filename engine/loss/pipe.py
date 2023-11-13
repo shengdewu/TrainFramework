@@ -46,17 +46,23 @@ class LossCompose:
 
 
 class LossFunc:
-    def __init__(self, func: Callable, param):
+    def __init__(self, func: Callable, params: Union[List, Tuple, str]):
         self.func = func
-        self.param = param
+        if isinstance(params, str):
+            if params == '':
+                self.params = []
+            else:
+                self.params = [params]
+        else:
+            self.params = params
         return
 
     def __call__(self, loss_input: Union[Dict, Tuple, List]):
         if isinstance(loss_input, Dict):
-            assert list(loss_input.keys()) == self.param, f'the loss input key {loss_input.keys()} must be == the loss_functions key {self.param}'
+            assert list(loss_input.keys()) == self.params, f'the loss input key {loss_input.keys()} must be == the loss_functions key {self.params}'
             return self.func(**loss_input)
         elif isinstance(loss_input, Tuple) or isinstance(loss_input, List):
-            assert self.param == '', f'the loss input key must be empty {self.param}'
+            assert len(self.params) == 0, f'the loss input key must be empty, but {self.params}'
             return self.func(*loss_input)
         raise NotImplemented('the loss input is not implemented')
 
@@ -106,11 +112,11 @@ class LossKeyCompose:
                 elif isinstance(loss, dict):
                     arch_name = self.get_values(loss, self.LOSS_NAME)
                     kwargs = dict2lower(self.get_values(loss, self.LOSS_PARAM))
-                    input_name = self.get_values(loss, self.LOSS_INPUT_NAME, False)
+                    input_names = self.get_values(loss, self.LOSS_INPUT_NAME, False)
                     loss_func = build_loss(arch_name, **kwargs)
                     if device in ['cpu', 'cuda']:
                         loss_func = loss_func.to(device)
-                    self.losses[key].append(LossFunc(func=loss_func, param=input_name))
+                    self.losses[key].append(LossFunc(func=loss_func, params=input_names))
                 else:
                     raise TypeError('loss must be callable or a dict')
         return
@@ -124,7 +130,7 @@ class LossKeyCompose:
         if len(loss_inputs) == len(loss_functions):
             score = loss_functions[0](loss_inputs[0])
             for i in range(1, len(loss_functions)):
-                score += loss_functions[i](**(loss_inputs[i]))
+                score += loss_functions[i](loss_inputs[i])
         else:
             score = loss_functions[0](loss_inputs)
             for i in range(1, len(loss_functions)):

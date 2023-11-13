@@ -142,15 +142,23 @@ class BaseScheduler:
             if isinstance(user_dicriminator_config, list):
                 default_cfg.SOLVER.DISCRIMINATOR = user_cfg['SOLVER']['DISCRIMINATOR']
             else:
-                lr_config = default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER
-                user_lr_config = user_dicriminator_config['LR_SCHEDULER']
-                if lr_config.TYPE != user_lr_config['TYPE']:
+                lr_config = default_cfg.SOLVER.DISCRIMINATOR.get('LR_SCHEDULER', None)
+                if lr_config is None:
+                    default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER = CfgNode(new_allowed=True)
                     default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
+                else:
+                    user_lr_config = user_dicriminator_config['LR_SCHEDULER']
+                    if lr_config is None or lr_config.TYPE != user_lr_config['TYPE']:
+                        default_cfg.SOLVER.DISCRIMINATOR.LR_SCHEDULER.PARAMS = CfgNode(new_allowed=True)
 
-                op_config = default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER
-                user_op_config = user_dicriminator_config['OPTIMIZER']
-                if op_config.TYPE != user_op_config['TYPE']:
+                op_config = default_cfg.SOLVER.DISCRIMINATOR.get('OPTIMIZER', None)
+                if op_config is None:
+                    default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER = CfgNode(new_allowed=True)
                     default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
+                else:
+                    user_op_config = user_dicriminator_config['OPTIMIZER']
+                    if op_config is None or op_config.TYPE != user_op_config['TYPE']:
+                        default_cfg.SOLVER.DISCRIMINATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
 
         user_dicriminator_config = user_cfg['TRAINER']['MODEL'].get('DISCRIMINATOR', None)
         if user_dicriminator_config is not None and isinstance(user_dicriminator_config, list):
