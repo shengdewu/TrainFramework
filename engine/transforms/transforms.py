@@ -61,7 +61,6 @@ class Resize:
             new_h, new_w = target_size, target_size
 
         results['img_shape'] = (new_h, new_w)
-        results['pad_shape'] = (new_h, new_w)
         results['scale'] = (scale_w, scale_h)
         results['keep_ratio'] = self.keep_ratio
         return results
@@ -75,24 +74,28 @@ class Resize:
         return results
 
     def _resize_img(self, results):
+        new_img_shape = results['img_shape']
         for key in results.get('img_fields', []):
             img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=self.interpolation)
-            if self.is_padding:
-                height, width = img.shape[0], img.shape[1]
-                if min(height, width) < self.target_size:
-                    h_offset = self.target_size - height
-                    w_offset = self.target_size - width
-                    h_pad_top = h_offset // 2
-                    h_pad_bottom = h_offset - h_pad_top
-                    w_pad_left = w_offset // 2
-                    w_pad_right = w_offset - w_pad_left
-                    img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
-                                             left=w_pad_left, right=w_pad_right,
-                                             borderType=cv2.BORDER_CONSTANT, value=0)
-                    results['pad_offset'] = (w_pad_left, h_pad_top)
+            if not self.is_padding:
+                continue
+            height, width = img.shape[0], img.shape[1]
+            if min(height, width) < self.target_size:
+                h_offset = self.target_size - height
+                w_offset = self.target_size - width
+                h_pad_top = h_offset // 2
+                h_pad_bottom = h_offset - h_pad_top
+                w_pad_left = w_offset // 2
+                w_pad_right = w_offset - w_pad_left
+                img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
+                                         left=w_pad_left, right=w_pad_right,
+                                         borderType=cv2.BORDER_CONSTANT, value=0)
+                results['pad_offset'] = (h_pad_top, w_pad_left)
 
-                results['img_shape'] = img.shape[0:2]
             results[key] = img
+            new_img_shape = img.shape[:2]
+
+        results['img_shape'] = new_img_shape
         return
 
     def _resize_box(self, results):
