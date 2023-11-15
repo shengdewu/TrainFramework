@@ -295,16 +295,17 @@ class RandomAffine:
             warp_bboxes[:, [1, 3]] = \
                 warp_bboxes[:, [1, 3]].clip(0, height)
 
-        # remove outside bbox
-        valid_index = F.find_inside_bboxes(warp_bboxes, height, width)
-
-        if not self.skip_filter:
-            # filter bboxes
-            filter_index = self.filter_gt_bboxes(
-                bboxes * scaling_ratio, warp_bboxes)
-            valid_index = valid_index & filter_index
-
-        return warp_bboxes[valid_index]
+        # # remove outside bbox
+        # valid_index = F.find_inside_bboxes(warp_bboxes, height, width)
+        #
+        # if not self.skip_filter:
+        #     # filter bboxes
+        #     filter_index = self.filter_gt_bboxes(
+        #         bboxes * scaling_ratio, warp_bboxes)
+        #     valid_index = valid_index & filter_index
+        #
+        # return warp_bboxes[valid_index]
+        return warp_bboxes
 
     def _affine_point(self, pts, affine_matrix, width, height):
         """
@@ -328,10 +329,10 @@ class RandomAffine:
             warp_pts[:, 0] = warp_pts[:, 0].clip(0, width)
             warp_pts[:, 1] = warp_pts[:, 1].clip(0, height)
 
-        # remove outside pts
-        valid_index = F.find_inside_pts(warp_pts, height, width)
-
-        return warp_pts[valid_index]
+        # # remove outside pts
+        # valid_index = F.find_inside_pts(warp_pts, height, width)
+        # return warp_pts[valid_index]
+        return warp_pts
 
     def filter_gt_bboxes(self, origin_bboxes, wrapped_bboxes):
         origin_w = origin_bboxes[:, 2] - origin_bboxes[:, 0]
@@ -556,11 +557,11 @@ class RandomCrop:
 
         return results
 
-    def _crop_bboxes(self, results, offset_w, offset_h):
+    def _crop_bboxes(self, results, offset_x, offset_y):
         height, width = results['img_shape']
 
         for key in results.get('bbox_fields', []):
-            bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h], dtype=np.float32)
+            bbox_offset = np.array([offset_x, offset_y, offset_x, offset_y], dtype=np.float32)
             bboxes = results[key] - bbox_offset
             if self.clip_border:
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
@@ -570,19 +571,16 @@ class RandomCrop:
             results[key] = bboxes[valid_inds, :]
         return
 
-    def _crop_pts(self, results, offset_w, offset_h):
+    def _crop_pts(self, results, offset_x, offset_y):
         height, width = results['img_shape']
 
         for key in results.get('pts_fields', []):
-            pts_offset = np.array([offset_w, offset_h], dtype=np.float32)
+            pts_offset = np.array([offset_x, offset_y], dtype=np.float32)
             pts = results[key] - pts_offset
             if self.clip_border:
                 pts[:, 0] = np.clip(pts[:, 0], 0, width)
                 pts[:, 1] = np.clip(pts[:, 1], 0, height)
-
-            valid_index = F.find_inside_pts(pts, height, width)
-
-            results[key] = pts[valid_index]
+            results[key] = pts
         return
 
     def __repr__(self):
