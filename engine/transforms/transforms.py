@@ -36,6 +36,8 @@ class Resize:
     resize 到指定大小 target_size
     Args:
         interpolation funcional/INTER_CV_TYPE
+
+    img_shape pad_offset 相关的都是 h w 形式
     """
 
     def __init__(self, target_size=0, interpolation='INTER_LINEAR', keep_ratio=True, is_padding=True, clip_border=True):
@@ -77,20 +79,19 @@ class Resize:
         new_img_shape = results['img_shape']
         for key in results.get('img_fields', []):
             img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=self.interpolation)
-            if not self.is_padding:
-                continue
-            height, width = img.shape[0], img.shape[1]
-            if min(height, width) < self.target_size:
-                h_offset = self.target_size - height
-                w_offset = self.target_size - width
-                h_pad_top = h_offset // 2
-                h_pad_bottom = h_offset - h_pad_top
-                w_pad_left = w_offset // 2
-                w_pad_right = w_offset - w_pad_left
-                img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
-                                         left=w_pad_left, right=w_pad_right,
-                                         borderType=cv2.BORDER_CONSTANT, value=0)
-                results['pad_offset'] = (h_pad_top, w_pad_left)
+            if self.is_padding:
+                height, width = img.shape[0], img.shape[1]
+                if min(height, width) < self.target_size:
+                    h_offset = self.target_size - height
+                    w_offset = self.target_size - width
+                    h_pad_top = h_offset // 2
+                    h_pad_bottom = h_offset - h_pad_top
+                    w_pad_left = w_offset // 2
+                    w_pad_right = w_offset - w_pad_left
+                    img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
+                                             left=w_pad_left, right=w_pad_right,
+                                             borderType=cv2.BORDER_CONSTANT, value=0)
+                    results['pad_offset'] = (h_pad_top, w_pad_left)
 
             results[key] = img
             new_img_shape = img.shape[:2]
@@ -99,13 +100,17 @@ class Resize:
         return
 
     def _resize_box(self, results):
+        """
+        :param results:  results['box_fileds'] [x1, y1, x2, y2]
+        :return:
+        """
         scale = results['scale']
         scales = [scale[0], scale[1], scale[0], scale[1]]
         height, width = results['img_shape']
         for key in results.get('box_fileds', []):
             bboxes = results[key] * scales
-            pad_offset = results.get('pad_offset', (0, 0))
-            bboxes = bboxes + [pad_offset[0], pad_offset[1], pad_offset[0], pad_offset[1]]
+            pad_offset = results.get('pad_offset', (0, 0)) # top, left
+            bboxes = bboxes + [pad_offset[1], pad_offset[0], pad_offset[1], pad_offset[0]]
             if self.clip_border:
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
                 bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, height)
@@ -113,12 +118,16 @@ class Resize:
         return
 
     def _resize_pts(self, results):
+        """
+        :param results:  results['pts_fields'] [x, y]
+        :return: 
+        """""
         scale = results['scale']
         height, width = results['img_shape']
         for key in results.get('pts_fields', []):
             pts = results[key] * scale
-            pad_offset = results.get('pad_offset', (0, 0))
-            pts = pts + pad_offset
+            pad_offset = results.get('pad_offset', (0, 0)) # top, left
+            pts = pts + [pad_offset[1], pad_offset[0]]
             if self.clip_border:
                 pts[:, 0] = np.clip(pts[:, 0], 0, width)
                 pts[:, 1] = np.clip(pts[:, 1], 0, height)
