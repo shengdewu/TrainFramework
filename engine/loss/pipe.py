@@ -128,9 +128,16 @@ class LossKeyCompose:
         :return:
         """
         if len(loss_inputs) == len(loss_functions):
-            score = loss_functions[0](loss_inputs[0])
-            for i in range(1, len(loss_functions)):
-                score += loss_functions[i](loss_inputs[i])
+            if isinstance(loss_inputs[0], List) or isinstance(loss_inputs[0], Tuple): # 表示loss_inputs中每个成员和loss_functions中的成员一一对应
+                score = loss_functions[0](loss_inputs[0])
+                for i in range(1, len(loss_functions)):
+                    score += loss_functions[i](loss_inputs[i])
+            elif isinstance(loss_inputs[0], Tensor):
+                score = loss_functions[0](loss_inputs)
+                for i in range(1, len(loss_functions)):
+                    score += loss_functions[i](loss_inputs)
+            else:
+                raise TypeError('loss_input must be List[Tuple] or List[List] or Tuple[List] or Tuple[Tuple] or List[Tensor] or Tuple[Tensor]')
         else:
             score = loss_functions[0](loss_inputs)
             for i in range(1, len(loss_functions)):

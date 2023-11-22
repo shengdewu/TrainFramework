@@ -11,7 +11,7 @@
     ]
 
     from engine.loss.pipe import LossCompose
-    loss_func = LossKeyCompose(loss_cfg)
+    loss_func = LossCompose(loss_cfg)
     ...
     fake_data = g_model(input_data)
     loss = loss_func((fake_data, target_data))
@@ -23,7 +23,7 @@
 ## LossKeyCompose  
 
 #### 说明
-1. 每个key下的损失函数可以通过 input_name 指定对应的输入
++ 每个key下的损失函数可以通过 input_name 指定对应的输入
 ```python
     # name: 损失函数的名称，必须注册
     # param: 损失函数的初始化参数
@@ -54,7 +54,7 @@
    
 ```  
 
-2. 每个key也可以不用指定输入名，则输入必须和损失函数要求的顺序一致
++ 每个key也可以不用指定输入名，则输入必须和损失函数要求的顺序一致
 ```python
     loss_cfg = dict(
         loss1=[
@@ -76,7 +76,7 @@
     loss2_cfg = (fake2, target2)
     total_loss = loss_cfg(dict(loss1=loss1_cfg, loss2=loss2_cfg))
 ```  
-3. 每个key下的损失函数的输入可以不同,这种情况下建议使用 input_name指出
++ 每个key下的损失函数的输入可以不同,这种情况下建议使用 input_name指出
 ```python
    loss_cfg = dict(
         loss1=[
