@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torchvision.models.vgg as tmv
 from engine.loss.build import LOSS_ARCH_REGISTRY
@@ -51,15 +52,15 @@ class VggLoss(nn.Module):
         self.citerion_l2 = nn.MSELoss()
         return
 
-    def forward(self, x, target):
+    def forward(self, input_tensor: Tensor, target_tensor: Tensor):
         """
-        :param x: b, c, h, w
-        :param target: b, c, h, w
+        :param input_tensor: b, c, h, w
+        :param target_tensor: b, c, h, w
         :return:
         """
-        assert x.shape == target.shape
-        real = self.vgg_op(x)
-        fake = self.vgg_op(target)
+        assert input_tensor.shape == target_tensor.shape
+        real = self.vgg_op(input_tensor)
+        fake = self.vgg_op(target_tensor)
         loss = self.citerion_l2(real, fake)
         return self.lambda_weight * loss
 
@@ -69,4 +70,3 @@ class VggLoss(nn.Module):
         format_string += 'vgg_arch: {}'.format(self.vgg_arch)
         format_string += 'lambda_weight: {})'.format(self.lambda_weight)
         return format_string
-

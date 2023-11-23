@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple, Callable, Union
 from torch import Tensor
+import torch
 from .build import build_loss
 
 
@@ -45,29 +46,51 @@ class LossCompose:
         return format_string
 
 
-class LossFunc:
-    def __init__(self, func: Callable, params: Union[List, Tuple, str]):
-        self.func = func
+class LossContainer:
+    def __init__(self):
+        self.funcs = list()
+        return
+
+    def add(self, func: Callable, params: Union[List, Tuple, str]):
         if isinstance(params, str):
             if params == '':
-                self.params = []
+                params = []
             else:
-                self.params = [params]
+                params = [params]
         else:
-            self.params = params
+            params = params
+        self.funcs.append((func, params))
         return
 
     def __call__(self, loss_input: Union[Dict, Tuple, List]):
         if isinstance(loss_input, Dict):
-            assert list(loss_input.keys()) == self.params, f'the loss input key {loss_input.keys()} must be == the loss_functions key {self.params}'
-            return self.func(**loss_input)
+            score = None
+            for func, param in self.funcs:
+                assert list(loss_input.keys()) == param, f'the loss input key {loss_input.keys()} must be == the loss_functions key {param}'
+                if score is None:
+                    score = func(**loss_input)
+                else:
+                    score += func(**loss_input)
+            return score
         elif isinstance(loss_input, Tuple) or isinstance(loss_input, List):
-            assert len(self.params) == 0, f'the loss input key must be empty, but {self.params}'
-            return self.func(*loss_input)
-        raise NotImplemented('the loss input is not implemented')
+            score = None
+            for func, param in self.funcs:
+                assert 0 == len(param), f'the loss input key must be empty, but {param}'
+                if score is None:
+                    score = func(*loss_input)
+                else:
+                    score += func(*loss_input)
+            return score
+        raise NotImplementedError(f'the loss input {type(loss_input)} is not implemented, the loss input type must be Dict, Tuple, List')
 
     def __repr__(self):
-        return str(self.func)
+        format_string = ''
+        for i, (func, param) in enumerate(self.funcs):
+            if 0 == len(format_string):
+                format_string = f'{i}: {str(func)}'
+            else:
+                format_string = f'{format_string}, {i}: {str(func)}'
+        return format_string
 
 
 class LossKeyCompose:
@@ -85,8 +108,17 @@ class LossKeyCompose:
             raise KeyError(f'{key.lower()} or {key.upper()} not in {item.keys()}')
         return ''
 
+    def create_loss_func(self, loss: dict, device=None):
+        arch_name = self.get_values(loss, self.LOSS_NAME)
+        kwargs = dict2lower(self.get_values(loss, self.LOSS_PARAM))
+        input_names = self.get_values(loss, self.LOSS_INPUT_NAME, False)
+        loss_func = build_loss(arch_name, **kwargs)
+        if device in ['cpu', 'cuda']:
+            loss_func = loss_func.to(device)
+        return loss_func, input_names
+
     def __init__(self, loss_cfgs: dict, device=None):
-        '''
+        """
         :param loss_cfgs:
         loss_cfgs = dict(
             loss1=[
@@ -95,8 +127,15 @@ class LossKeyCompose:
             loss2=[
                 dict(name='MSELoss', param=dict(param1=1.0), input_name=['input1', 'input2'])
             ],
+            loss3=[
+                (
+                    dict(name='MSELoss', param=dict(param1=1.0), input_name=['input1', 'input2']),
+                    dict(name='VGGLoss', param=dict(param1=1.0), input_name=['input1', 'input2'])
+                ),
+                dict(name='MSELoss', param=dict(param1=1.0), input_name=['input1', 'input2'])
+            ]
         )
-        '''
+        """
 
         self.losses = dict()
 
@@ -110,48 +149,54 @@ class LossKeyCompose:
                 if callable(loss):
                     self.losses[key] = loss
                 elif isinstance(loss, dict):
-                    arch_name = self.get_values(loss, self.LOSS_NAME)
-                    kwargs = dict2lower(self.get_values(loss, self.LOSS_PARAM))
-                    input_names = self.get_values(loss, self.LOSS_INPUT_NAME, False)
-                    loss_func = build_loss(arch_name, **kwargs)
-                    if device in ['cpu', 'cuda']:
-                        loss_func = loss_func.to(device)
-                    self.losses[key].append(LossFunc(func=loss_func, params=input_names))
+                    loss_func, input_names = self.create_loss_func(loss, device)
+                    loss_container = LossContainer()
+                    loss_container.add(loss_func, input_names)
+                    self.losses[key].append(loss_container)
+                elif (isinstance(loss, list) or isinstance(loss, tuple)) and isinstance(loss[0], dict):
+                    loss_container = LossContainer()
+                    for l in loss:
+                        loss_func, input_names = self.create_loss_func(l, device)
+                        loss_container.add(loss_func, input_names)
+                    self.losses[key].append(loss_container)
                 else:
-                    raise TypeError('loss must be callable or a dict')
+                    raise TypeError('loss must be callable or a dict or dict[list]')
         return
 
-    def __loss_fn__(self, loss_inputs: Union[List, Tuple], loss_functions: List[LossFunc]):
+    def __loss_fn__(self, loss_inputs: Union[List[List], List[Tuple]], loss_functions: List[LossContainer]):
         """
-        :param loss_inputs: [{input1: tensor, input2:tensor}, {...}]} or [[tensor, tensor], [..]] or (tensor, tensor)
+        :param loss_inputs: [{input1: tensor, input2:tensor}, {...}]} or [[tensor, tensor], [..]] or [(tensor, tensor)]
         :param loss_functions:
         :return:
         """
-        if len(loss_inputs) == len(loss_functions):
-            if isinstance(loss_inputs[0], List) or isinstance(loss_inputs[0], Tuple): # 表示loss_inputs中每个成员和loss_functions中的成员一一对应
+        assert (loss_inputs[0], List) or isinstance(loss_inputs[0], Tuple), 'loss_input must be List[Tuple] or List[List]'
+
+        if len(loss_inputs) == len(loss_functions):  # 表示loss_inputs中每个成员和loss_functions中的成员一一对应
+            score = loss_functions[0](loss_inputs[0])
+            for i in range(1, len(loss_functions)):
+                score += loss_functions[i](loss_inputs[i])
+        else:
+            # 多个输入共享一个loss
+            if 1 == len(loss_functions):
+                score = loss_functions[0](loss_inputs[0])
+                for i in range(1, len(loss_inputs)):
+                    score += loss_functions[0](loss_inputs[i])
+            # 一个输入共享多个loss
+            else:
+                assert 1 == len(loss_inputs), 'loss_input must be equal 1 when len(loss_functions) > 1 and len(loss_inputs) != len(loss_functions)'
                 score = loss_functions[0](loss_inputs[0])
                 for i in range(1, len(loss_functions)):
-                    score += loss_functions[i](loss_inputs[i])
-            elif isinstance(loss_inputs[0], Tensor):
-                score = loss_functions[0](loss_inputs)
-                for i in range(1, len(loss_functions)):
-                    score += loss_functions[i](loss_inputs)
-            else:
-                raise TypeError('loss_input must be List[Tuple] or List[List] or Tuple[List] or Tuple[Tuple] or List[Tensor] or Tuple[Tensor]')
-        else:
-            score = loss_functions[0](loss_inputs)
-            for i in range(1, len(loss_functions)):
-                score += loss_functions[i](loss_inputs)
+                    score += loss_functions[i](loss_inputs[0])
+
         return score
 
     def __call__(self, losses: dict):
-        '''
+        """
         :param losses:
                     {key: [{input1: tensor, input2:tensor}, {...}]}
-                    {key: [[tensor, tensor], [..]]}
-                    {key: (tensor, tensor)}
+                    {key: [[tensor, tensor], [..], (...,)]}
         :return:
-        '''
+        """
         assert len(losses) == len(self.losses)
         score = None
         for key, loss_input in losses.items():
