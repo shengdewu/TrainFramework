@@ -60,8 +60,16 @@ class BaseGanModel(BaseModel, abc.ABC):
 
     def dmodel_forward(self, d_model_input: Union[Dict[str, Dict[str, torch.Tensor]], Dict[str, torch.Tensor]]) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """
-        :param d_model_input: dict(d_mode_key=dict())
+        :param d_model_input:
+
+                    dict(d_mode_key=dict(input_name=Tensor)): 对应不同的d_model, 内部 dict 表示模型的输入参数
+
+                    dict(input_name=Tensor): 表示模型的输入参数, 对应同一个d_model 且 用户没有指定 d_model的名称
         :return:
+                dict(d_model_key=Tensor) 对应不同的d_model
+
+                Tensor: 对应同一个d_model 且 用户没有指定 d_model的名称
+
         """
         if isinstance(d_model_input[list(d_model_input.keys())[0]], torch.Tensor):
             new_input = {self.DEFAULT_DMODEL_NAME: d_model_input}
@@ -135,26 +143,20 @@ class BaseGanModel(BaseModel, abc.ABC):
 
     def disable_train(self):
         self.g_model.eval()
-        if isinstance(self.d_model, dict):
-            for k, d_model in self.d_model.items():
-                d_model.eval()
-        else:
-            self.d_model.eval()
+        for k, d_model in self.d_model.items():
+            d_model.train()
         return
 
     def get_addition_state_dict(self):
         state_dict = dict()
         state_dict['g_optimizer'] = checkpoint_f.get_model_state_dict(self.g_optimizer)
         state_dict['g_scheduler'] = checkpoint_f.get_model_state_dict(self.g_scheduler)
-        if isinstance(self.d_model, dict):
-            for k, d_model in self.d_model.items():
-                state_dict['d_model_{}'.format(k)] = checkpoint_f.get_model_state_dict(d_model)
-                state_dict['d_optimizer_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_optimizer[k])
-                state_dict['d_scheduler_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_scheduler[k])
-        else:
-            state_dict['d_model'] = checkpoint_f.get_model_state_dict(self.d_model)
-            state_dict['d_optimizer'] = checkpoint_f.get_model_state_dict(self.d_optimizer)
-            state_dict['d_scheduler'] = checkpoint_f.get_model_state_dict(self.d_scheduler)
+
+        for k, d_model in self.d_model.items():
+            state_dict['d_model_{}'.format(k)] = checkpoint_f.get_model_state_dict(d_model)
+            state_dict['d_optimizer_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_optimizer[k])
+            state_dict['d_scheduler_{}'.format(k)] = checkpoint_f.get_model_state_dict(self.d_scheduler[k])
+
         state_dict['cfg'] = self.cfg.dump()
         return state_dict
 
@@ -166,37 +168,26 @@ class BaseGanModel(BaseModel, abc.ABC):
         checkpoint_f.load_checkpoint_state_dict(self.g_optimizer, state_dict['g_optimizer'])
         checkpoint_f.load_checkpoint_state_dict(self.g_scheduler, state_dict['g_scheduler'])
 
-        if isinstance(self.d_model, dict):
-            for k, d_model in self.d_model.items():
-                checkpoint_f.load_model_state_dict(d_model, state_dict['d_model_{}'.format(k)], log_name=self.default_log_name)
-                checkpoint_f.load_checkpoint_state_dict(self.d_optimizer[k], state_dict['d_optimizer_{}'.format(k)])
-                checkpoint_f.load_checkpoint_state_dict(self.d_scheduler[k], state_dict['d_scheduler_{}'.format(k)])
-        else:
-            checkpoint_f.load_model_state_dict(self.d_model, state_dict['d_model'], log_name=self.default_log_name)
-            checkpoint_f.load_checkpoint_state_dict(self.d_optimizer, state_dict['d_optimizer'])
-            checkpoint_f.load_checkpoint_state_dict(self.d_scheduler, state_dict['d_scheduler'])
+        for k, d_model in self.d_model.items():
+            checkpoint_f.load_model_state_dict(d_model, state_dict['d_model_{}'.format(k)], log_name=self.default_log_name)
+            checkpoint_f.load_checkpoint_state_dict(self.d_optimizer[k], state_dict['d_optimizer_{}'.format(k)])
+            checkpoint_f.load_checkpoint_state_dict(self.d_scheduler[k], state_dict['d_scheduler_{}'.format(k)])
         return
 
     def enable_dirstribute_ddp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
         self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
-        if isinstance(self.d_model, dict):
-            new_d_model = dict()
-            for k, d_model in self.d_model.items():
-                new_d_model[k] = torch.nn.parallel.DistributedDataParallel(d_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
-            self.d_model = new_d_model
-        else:
-            self.d_model = torch.nn.parallel.DistributedDataParallel(self.d_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        new_d_model = dict()
+        for k, d_model in self.d_model.items():
+            new_d_model[k] = torch.nn.parallel.DistributedDataParallel(d_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
+        self.d_model = new_d_model
         return
 
     def enable_distribute_dp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by parallel')
         self.g_model = torch.nn.parallel.DataParallel(self.g_model)
-        if isinstance(self.d_model, dict):
-            new_d_model = dict()
-            for k, d_model in self.d_model.items():
-                new_d_model[k] = torch.nn.parallel.DataParallel(d_model)
-            self.d_model = new_d_model
-        else:
-            self.d_model = torch.nn.parallel.DataParallel(self.d_model)
+        new_d_model = dict()
+        for k, d_model in self.d_model.items():
+            new_d_model[k] = torch.nn.parallel.DataParallel(d_model)
+        self.d_model = new_d_model
         return

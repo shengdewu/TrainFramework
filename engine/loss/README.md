@@ -34,9 +34,11 @@
     loss_cfg = dict(
         loss1=[
             dict(name='CrossEntropyLoss', param=dict(lambda_weight=1.0), input_name=['input_tensor1', 'target_tensor1']),
+            dict(name='MSELoss', param=dict(lambda_weight=1.0), input_name=['input_tensor1', 'target_tensor1']),
         ],
         loss2=[
             dict(name='CrossEntropyLoss', param=dict(lambda_weight=1.0), input_name=['input_tensor1', 'target_tensor1']),
+            dict(name='MSELoss', param=dict(lambda_weight=1.0), input_name=['input_tensor1', 'target_tensor1']),
         ]
     )
     
@@ -48,9 +50,14 @@
     fake2 = g_model2(input_data)
 
     loss1_cfg = [
+        """
+        输入和loss1的长度一样，则表示每个输入和loss一一对应
+        """
+        dict(input_tensor1=fake1, target_tensor1=target1),
         dict(input_tensor1=fake1, target_tensor1=target1),
     ]
     loss2_cfg = [
+        dict(input_tensor1=fake2, target_tensor1=target2),
         dict(input_tensor1=fake2, target_tensor1=target2),
     ]
     total_loss = loss_func(dict(loss1=loss1_cfg, loss2=loss2_cfg))
@@ -116,7 +123,7 @@
 ##### D 每个key下的一个子项  是 tuple或者 list eg: loss2, 表示一个输入或多个输入对应同一组loss_function
  ```python
    loss_cfg = dict(
-        # A 同一个输入共享 loss3下的所有loss
+        # A 同一个输入共享 loss下的所有loss
         loss1=[
             dict(name='MSELoss', param=dict(lambda_weight=1.0), input_name=['input_tensor1', 'target_tensor1']),
             dict(name='MSELoss', param=dict(lambda_weight=1.0), input_name=['input_tensor2', 'target_tensor2']),

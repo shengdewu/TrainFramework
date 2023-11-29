@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict
+from typing import Any, Dict, Tuple, List, Union
 import random
 import numpy as np
 import cv2
@@ -109,7 +109,7 @@ class Resize:
         height, width = results['img_shape']
         for key in results.get('box_fileds', []):
             bboxes = results[key] * scales
-            pad_offset = results.get('pad_offset', (0, 0)) # top, left
+            pad_offset = results.get('pad_offset', (0, 0))  # top, left
             bboxes = bboxes + [pad_offset[1], pad_offset[0], pad_offset[1], pad_offset[0]]
             if self.clip_border:
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
@@ -126,7 +126,7 @@ class Resize:
         height, width = results['img_shape']
         for key in results.get('pts_fields', []):
             pts = results[key] * scale
-            pad_offset = results.get('pad_offset', (0, 0)) # top, left
+            pad_offset = results.get('pad_offset', (0, 0))  # top, left
             pts = pts + [pad_offset[1], pad_offset[0]]
             if self.clip_border:
                 pts[:, 0] = np.clip(pts[:, 0], 0, width)
@@ -152,8 +152,9 @@ class RandomAffine:
     rotation, translation, shear and scaling transforms.
 
     Args:
-        max_rotate_degree (float): Maximum degrees of rotation transform.
+        rotate_degree_range (union[float,tuple(float)]): degrees of rotation transform.
             Default: 10.
+        rotate_range (bool):  random.uniform(self.rotate_degree_range[0], self.rotate_degree_range[1]) if true else np.choice(rotate_degree_range)
         max_translate_ratio (float): Maximum ratio of translation.
             Default: 0.
         scaling_ratio_range (tuple[float]): Min and max ratio of
@@ -183,7 +184,8 @@ class RandomAffine:
     """
 
     def __init__(self,
-                 max_rotate_degree,
+                 rotate_degree_range: Union[float, Tuple] = (-10, 10),
+                 rotate_range=True,
                  max_translate_ratio=0,
                  scaling_ratio_range=(1., 1.),
                  max_shear_degree=0.0,
@@ -197,8 +199,17 @@ class RandomAffine:
                  skip_filter=True,
                  ):
         assert 0 <= max_translate_ratio <= 1
+
         self.p = p
-        self.max_rotate_degree = max_rotate_degree
+
+        self.rotate_range = rotate_range
+        if isinstance(rotate_degree_range, Tuple):
+            assert 2 == len(rotate_degree_range)
+            self.rotate_degree_range = rotate_degree_range
+        else:
+            self.rotate_degree_range = (rotate_degree_range, rotate_degree_range)
+            self.rotate_range = False
+
         self.max_translate_ratio = max_translate_ratio
         self.border_val = border_val
         self.clip_border = clip_border
@@ -217,7 +228,11 @@ class RandomAffine:
             height = img.shape[0]
             width = img.shape[1]
             # Rotation
-            rotation_degree = random.uniform(-self.max_rotate_degree, self.max_rotate_degree)
+            if not self.rotate_range:
+                rotation_degree = random.choice(self.rotate_degree_range)
+            else:
+                rotation_degree = random.uniform(self.rotate_degree_range[0], self.rotate_degree_range[1])
+
             rotation_matrix = self._get_rotation_matrix(rotation_degree, width / 2, height / 2)
 
             # Translation

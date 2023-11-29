@@ -1,6 +1,5 @@
 from typing import Dict, List, Tuple, Callable, Union
 from torch import Tensor
-import torch
 from .build import build_loss
 
 
