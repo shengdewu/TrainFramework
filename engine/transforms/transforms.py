@@ -91,7 +91,7 @@ class Resize:
                     img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
                                              left=w_pad_left, right=w_pad_right,
                                              borderType=cv2.BORDER_CONSTANT, value=0)
-                    results['pad_offset'] = (h_pad_top, w_pad_left)
+                    results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
 
             results[key] = img
             new_img_shape = img.shape[:2]
@@ -109,8 +109,8 @@ class Resize:
         height, width = results['img_shape']
         for key in results.get('box_fileds', []):
             bboxes = results[key] * scales
-            pad_offset = results.get('pad_offset', (0, 0))  # top, left
-            bboxes = bboxes + [pad_offset[1], pad_offset[0], pad_offset[1], pad_offset[0]]
+            pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
+            bboxes = bboxes + [pad_left, pad_top, pad_left, pad_top]
             if self.clip_border:
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
                 bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, height)
@@ -126,8 +126,8 @@ class Resize:
         height, width = results['img_shape']
         for key in results.get('pts_fields', []):
             pts = results[key] * scale
-            pad_offset = results.get('pad_offset', (0, 0))  # top, left
-            pts = pts + [pad_offset[1], pad_offset[0]]
+            pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
+            pts = pts + [pad_left, pad_top, pad_left, pad_top]
             if self.clip_border:
                 pts[:, 0] = np.clip(pts[:, 0], 0, width)
                 pts[:, 1] = np.clip(pts[:, 1], 0, height)
