@@ -49,42 +49,62 @@ class BaseGanModel(BaseModel, abc.ABC):
     def create_d_model(self, params) -> torch.nn.Module:
         return build_network(params)
 
-    def _dmodel_forward(self, d_model_input: Dict[str, Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def dmodel_forward(self, d_model_input: Union[Dict[str, Dict[str, torch.Tensor]], Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        """
+        :param d_model_input:
+                1. d_model 的配置如下：
+                model['discriminator'] = [
+                        dict(name='d_model1', params=dict(name='Discriminator')),
+                        dict(name='d_model2', params=dict(name='Discriminator'))
+                        ]
+
+                则：
+                    self.d_model = dict(d_model1=Discriminator()),
+                                        d_model2=Discriminator())
+
+                所以
+                    d_model_input = dict(d_model1=dict(input_name=Tensor), 内层 dict 表示模型 Discriminator 输入参数
+                                         d_model2=dict(input_name=Tensor))
+
+                2. d_model 的配置如下：
+                model['discriminator'] = dict(name='Discriminator')
+
+                则：
+                    self.d_model = dict(default=Discriminator())) #这种情况下 使用缺省 key[default]
+
+                所以
+                    d_model_input = dict(input_name=Tensor)  # 表示模型 Discriminator 输入参数
+                    或者
+                    d_model_input = dict(default=dict(input_name=Tensor)) # 内层 dict 表示模型 Discriminator 输入参数
+        :return:
+                dict(d_model1=Tensor, d_model2=Tensor)
+                或者
+                dict(default=Tensor)
+        """
+        if isinstance(d_model_input[list(d_model_input.keys())[0]], torch.Tensor):
+            d_model_input = {self.DEFAULT_DMODEL_NAME: d_model_input}
+
         assert len(set(d_model_input.keys()).intersection(self.d_model.keys())) == len(self.d_model.keys()), f'the name of input != the name of self.d_model'
 
         output = dict()
         for key, param in d_model_input.items():
             output[key] = self.d_model[key](**param)
-
         return output
 
-    def dmodel_forward(self, d_model_input: Union[Dict[str, Dict[str, torch.Tensor]], Dict[str, torch.Tensor]]) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
-        """
-        :param d_model_input:
-
-                    dict(d_mode_key=dict(input_name=Tensor)): 对应不同的d_model, 内部 dict 表示模型的输入参数
-
-                    dict(input_name=Tensor): 表示模型的输入参数, 对应同一个d_model 且 用户没有指定 d_model的名称
-        :return:
-                dict(d_model_key=Tensor) 对应不同的d_model
-
-                Tensor: 对应同一个d_model 且 用户没有指定 d_model的名称
-
-        """
-        if isinstance(d_model_input[list(d_model_input.keys())[0]], torch.Tensor):
-            new_input = {self.DEFAULT_DMODEL_NAME: d_model_input}
-            output = self._dmodel_forward(new_input)
-            output = output[self.DEFAULT_DMODEL_NAME]
-        else:
-            output = self._dmodel_forward(d_model_input)
-        return output
-
-    def _dmodel_backward(self, d_model_loss: Dict[str, torch.Tensor], retain_graph=False):
+    def _dmodel_backward(self, d_model_loss: Union[Dict[str, torch.Tensor], torch.Tensor], retain_graph=False):
         """
         :param retain_graph:
-        :param d_model_loss: dict(d_model_key=torch.Tensor)
+        :param d_model_loss:
+                参见方法 _dmodel_forward
+                d_model_loss=dict(d_model1=torch.Tensor),
+                                  d_model2=torch.Tensor)
+                或者
+                d_model_input = torch.Tensor  #使用缺省 key[default] 只有一个d_model且用户未指定d_model的key
         :return:
         """
+        if isinstance(d_model_loss, torch.Tensor):
+            d_model_loss = {self.DEFAULT_DMODEL_NAME: d_model_loss}
+
         assert len(d_model_loss) == len(self.d_optimizer), 'the d_model_loss not match d_optimizer number'
         for key, loss_tensor in d_model_loss.items():
             assert isinstance(loss_tensor, torch.Tensor), 'the type of value of d_model_loss must be torch.Tensor'
@@ -93,24 +113,38 @@ class BaseGanModel(BaseModel, abc.ABC):
             self.d_optimizer[key].step()
         return
 
-    def dmodel_backward(self, d_model_loss: Union[Dict[str, torch.Tensor], torch.Tensor], retain_graph=False):
-        """
-        :param retain_graph:
-        :param d_model_loss: dict(d_model_key=torch.Tensor)
-        :return:
-        """
-        if isinstance(d_model_loss, torch.Tensor):
-            new_input = {self.DEFAULT_DMODEL_NAME: d_model_loss}
-            self._dmodel_backward(new_input, retain_graph)
-        else:
-            self._dmodel_backward(d_model_loss, retain_graph)
-        return
-
-    def gmodel_backward(self, loss_tensor: torch.Tensor, retain_graph=False):
+    def _gmodel_backward(self, loss_tensor: torch.Tensor, retain_graph=False):
         self.g_optimizer.zero_grad()
         loss_tensor.backward(retain_graph=retain_graph)
         self.g_optimizer.step()
         return
+
+    @abc.abstractmethod
+    def gmodel_step(self, data, epoch=None, **kwargs) -> torch.Tensor:
+        pass
+
+    @abc.abstractmethod
+    def dmodel_step(self, data, epoch=None, **kwargs) -> Dict[str, torch.Tensor]:
+        pass
+
+    def run_step(self, data, *, epoch=None, **kwargs):
+        step_info = dict()
+
+        d_model_loss = self.dmodel_step(data, epoch, **kwargs)
+        self._dmodel_backward(d_model_loss, retain_graph=False)
+
+        if epoch % self.cfg.TRAINER.MODEL.get('G_STEP', 1) == 0:
+            g_model_loss = self.gmodel_step(data, epoch, **kwargs)
+            self._gmodel_backward(g_model_loss, retain_graph=False)
+            self.g_scheduler.step(epoch)
+            step_info['g_model_loss'] = g_model_loss.detach().item()
+
+        for k, d_schedler in self.d_scheduler.items():
+            d_schedler.step(epoch)
+
+        for name, item in d_model_loss.items():
+            step_info[f'd_model_loss_{name}'] = item.detach().item()
+        return step_info
 
     def __call__(self, data, *, epoch=None, **kwargs):
         """
@@ -122,11 +156,8 @@ class BaseGanModel(BaseModel, abc.ABC):
                 loss_dict = self.run_step(data, **kwargs)
                 self.scheduler.step(epoch)
         """
-        loss_dict = self.run_step(data=data, epoch=epoch, **kwargs)
 
-        self.g_scheduler.step(epoch)
-        for k, d_schedler in self.d_scheduler.items():
-            d_schedler.step(epoch)
+        loss_dict = self.run_step(data=data, epoch=epoch, **kwargs)
 
         loss_dict['g_learning_rate'] = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
         loss_dict['d_learning_rate'] = list()

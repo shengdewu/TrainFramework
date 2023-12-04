@@ -220,7 +220,7 @@ class BaseModel(abc.ABC):
         return
 
     def sync_batch_norm(self):
-        return self.g_model
+        return torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
 
     def enable_dirstribute_ddp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))

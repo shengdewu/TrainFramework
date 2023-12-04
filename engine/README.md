@@ -1,6 +1,8 @@
 # 使用 engine  
 
-## 1. 继承BaseModel创建创基自己的模型
+##  BaseModel 使用说明：  
+
+### 1. 继承BaseModel创建创基自己的模型
 ```python
 from engine.model.base_model import BaseModel
 from engine.model.build import BUILD_MODEL_REGISTRY
@@ -51,7 +53,7 @@ class MyModel(BaseModel):
         return scores
 ```    
 
-## 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法
+### 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法
 ```python
 from engine.trainer.trainer import BaseTrainer
 from engine.trainer.build import BUILD_TRAINER_REGISTRY
@@ -79,7 +81,7 @@ class MyTrainer(BaseTrainer):
         return
 ```  
 
-## 4. 定义自己的数据
+### 3. 定义自己的数据
 ```python
 from engine.data.dataset import EngineDataSet
 from engine.data.build import BUILD_DATASET_REGISTRY
@@ -119,19 +121,75 @@ class MyDataset(EngineDataSet):
 
 ```
 
-## 5. 将上诉定义的包必须导入到程序中，必须！！！ 否则注册不生效
+### 4. 将上诉定义的包必须导入到程序中，必须！！！ 否则注册不生效
 
-## 6. 定义训练入口, 开始训练
+### 5. 定义训练入口, 开始训练
 ```python
 from engine.schedule.scheduler import BaseScheduler
 from codes import *
 
 if __name__ == '__main__':
     BaseScheduler().schedule()
+```   
+
+## BaseGanModel 使用说明 针对GAN模型, 其他和BaseModel一致  
+
+```python
+from engine.model.gan_model import BaseGanModel
+from engine.model.build import BUILD_MODEL_REGISTRY
+from engine.loss.pipe import LossKeyCompose
+from codes.backbone.discriminator import Discriminator
+from codes.loss.gan_loss import GANLoss
+import torch
+
+@BUILD_MODEL_REGISTRY.register()
+class RetouchGanModel(BaseGanModel):
+    def __init__(self, cfg):
+        super(RetouchGanModel, self).__init__(cfg)
+        self.g_loss = LossKeyCompose(cfg.TRAINER.MODEL.LOSS, self.device)
+        self.gan_loss = GANLoss(use_lsgan=True)
+        return
+
+    def create_d_model(self, params) -> torch.nn.Module:
+        return Discriminator()
+
+    def dmodel_step(self, data, epoch=None, **kwargs):
+        img_tensor = data['img'].to(self.device)
+        gt_tensor = data['gt'].to(self.device)
+
+        fake_mask = self.g_model(img_tensor)
+
+        output_real_loss = self.dmodel_forward(dict(d_model1=dict(input_tensor=gt_tensor)))
+        output_fake_loss = self.dmodel_forward(dict(d_model1=dict(input_tensor=fake_mask.detach())))
+
+        d_loss = self.gan_loss(output_real_loss['d_model1'], True) + self.gan_loss(output_fake_loss['d_model1'], False)
+
+        total_loss = dict(d_model1=d_loss)
+        return total_loss
+
+    def gmodel_step(self, data, epoch=None, **kwargs):
+        img_tensor = data['img'].to(self.device)
+        gt_tensor = data['gt'].to(self.device)
+
+        fake = self.g_model(img_tensor)
+
+        loss_input = (fake, gt_tensor)
+
+        total_loss = self.g_loss(dict(loss1=loss_input))
+
+        return total_loss
+
+    def generator(self, data):
+        """
+        :param data:
+        :return:
+        """
+        return self.g_model(data.to(self.device))
+
 ```
+## 配置说明, 支持 python和yaml
 
-
-## 5 配置说明, 支持 python和yaml
+### 1. 数据配置
 ```python
 
 dataloader = dict(
@@ -183,7 +241,10 @@ dataloader = dict(
         ]
     )
 )
+```
 
+### 2. 训练器配置
+```python
 trainer = dict(
     name='MyTrainer', #用用户自定义训练器名
     device='cuda',
@@ -194,66 +255,111 @@ trainer = dict(
             name='MyNetwork', #用户自定义的网络名
             my_network_param='my_network_param'
         ),
-    ),
-    # 1.
-    loss=dict(
-        loss1=[
-            dict(name='CrossEntropyLoss', param=dict(lambda_weight=10.))
+        discriminator = [
+            dict(name='dmodel_name1', params=dict(name='Discriminator')), #必须和solver匹配
+            dict(name='dmodel_name2', params=dict(name='Discriminator'))
         ],
-        loss2=[
-            dict(name='CrossEntropyLoss', param=dict(lambda_weight=1.0), input_name=['input_tensor', 'target_tensor'])
-        ]
-    )
-    # 2
-    loss = [
-        dict(name='CrossEntropyLoss')
-    ]
+        # 详见 engine/loss/README.md
+        loss=dict(
+            loss1=[
+                dict(name='CrossEntropyLoss', param=dict(lambda_weight=10.))
+            ],
+            loss2=[
+                dict(name='CrossEntropyLoss', param=dict(lambda_weight=1.0), input_name=['input_tensor', 'target_tensor'])
+            ]
+        ),
+        ema=dict(
+            enable=True,  # gender enable ema 只对 生成器有效
+            decay_rate=0.995        
+        ),
+        g_step=1, #表示 g_model 训练间隔，只在 GAN中生效    
+    ),
 )
+```
 
-enable_ema = True
-if enable_ema:
-    trainer['model']['ema'] = dict(
-        enable=True,  # gender enable ema
-        decay_rate=0.995)
-
-max_iter = 250000
+### 3. 优化器配置
+```python
 solver = dict(
     train_per_batch=8,
     test_per_batch=8,
-    max_iter=max_iter,
+    max_iter=200000,
     max_keep=20,
     checkpoint_period=5000,
     generator=dict(
         lr_scheduler=dict(
             enabled=True,
-            type='LRMultiplierScheduler',
-            params=dict(
+            type='LRMultiplierScheduler',  # 学习率调度方法
+            params=dict(           #学习率调度方法对应的参数
                 lr_scheduler_param=dict(
                     name='WarmupMultiStepLR',
                     gamma=0.1,
                     steps=[40000, 120000, 180000, 240000],
                 ),
-                max_iter=max_iter,
+                max_iter=200000,
                 warmup_factor=0.01,
                 warmup_iter=500,
                 warmup_method='linear'
             )
         ),
         optimizer=dict(
-            type='Adam',
-            params=dict(
+            type='Adam',  #优化器名
+            params=dict(  #优化器参数
                 lr=0.01,
                 weight_decay=1e-6,
             ),
             clip_gradients=dict(
                 enabled=False,
-            ),
-            g_step=1
+            )
         )
     ),
+    discriminator = [
+        dict(name='dmodel_name1', 
+             params=dict(lr_scheduler=dict(
+                                            enabled=False,
+                                            type='MultiStepLR',
+                                            params=dict(
+                                                milestones=[80000, 100000, 125000],
+                                                gamma=0.1
+                                            )
+                         ), 
+                         optimizer=dict(
+                                        type='AdamW',
+                                        params=dict(
+                                            weight_decay=0.0001,
+                                            betas=[0.9, 0.999],
+                                            lr=0.0001
+                                        ),
+                                        clip_gradients=dict(
+                                            enabled=False,
+                                        )                         
+                        )
+            )
+        ),
+        dict(name='dmodel_name2', 
+             params=dict(lr_scheduler=dict(
+                                            enabled=False,
+                                            type='MultiStepLR',
+                                            params=dict(
+                                                milestones=[80000, 100000, 125000],
+                                                gamma=0.1
+                                            )
+                         ), 
+                         optimizer=dict(
+                                        type='AdamW',
+                                        params=dict(
+                                            weight_decay=0.0001,
+                                            betas=[0.9, 0.999],
+                                            lr=0.0001
+                                        ),
+                                        clip_gradients=dict(
+                                            enabled=False,
+                                        )                         
+                        )
+            )
+        ),    ]
+
 )
 output_dir = '/data'
 output_log_name = 'my-log'
-
 
 ```
