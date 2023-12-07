@@ -31,6 +31,90 @@ __all__ = [
 
 
 @BUILD_TRANSFORMER_REGISTRY.register()
+class Pad32:
+    """
+    把图片pad到能被32整除
+    """
+    def __init__(self):
+        return
+
+    def __call__(self, results):
+        height, width = results['img_shape']
+        pad_h = math.ceil(height / 32) * 32
+        pad_w = math.ceil(width / 32) * 32
+
+        results['pad_shape'] = (pad_h, pad_w)
+
+        self._pad_img(results)
+        self._pad_box(results)
+        self._pad_pts(results)
+
+        return results
+
+    def _pad_img(self, results):
+        pad_h, pad_w = results['pad_shape']
+        for key in results.get('img_fields', []):
+            img = results[key]
+
+            assert results['img_shape'] == img.shape[:-1]
+            height, width = img.shape[0], img.shape[1]
+            if (pad_h, pad_w) == (height, width):
+                continue
+
+            h_offset = pad_h - height
+            w_offset = pad_w - width
+            h_pad_top = h_offset // 2
+            h_pad_bottom = h_offset - h_pad_top
+            w_pad_left = w_offset // 2
+            w_pad_right = w_offset - w_pad_left
+            img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
+                                     left=w_pad_left, right=w_pad_right,
+                                     borderType=cv2.BORDER_CONSTANT, value=0)
+            results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
+
+            results[key] = img
+
+        results['img_shape'] = (pad_h, pad_w)
+        return
+
+    def _pad_box(self, results):
+        """
+        :param results:  results['box_fileds'] [x1, y1, x2, y2]
+        :return:
+        """
+        height, width = results['img_shape']
+        for key in results.get('box_fileds', []):
+            bboxes = results[key]
+            pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
+            bboxes = bboxes + [pad_left, pad_top, pad_left, pad_top]
+            if self.clip_border:
+                bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
+                bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, height)
+            results[key] = bboxes
+        return
+
+    def _pad_pts(self, results):
+        """
+        :param results:  results['pts_fields'] [x, y]
+        :return: 
+        """""
+        height, width = results['img_shape']
+        for key in results.get('pts_fields', []):
+            pts = results[key]
+            pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
+            pts = pts + [pad_left, pad_top, pad_left, pad_top]
+            if self.clip_border:
+                pts[:, 0] = np.clip(pts[:, 0], 0, width)
+                pts[:, 1] = np.clip(pts[:, 1], 0, height)
+            results[key] = pts
+        return
+
+    def __repr__(self):
+        format_string = self.__class__.__name__
+        return format_string
+
+
+@BUILD_TRANSFORMER_REGISTRY.register()
 class Resize:
     """
     resize 到指定大小 target_size
