@@ -35,6 +35,7 @@ class Pad32:
     """
     把图片pad到能被32整除
     """
+
     def __init__(self):
         return
 
@@ -236,7 +237,7 @@ class RandomAffine:
     rotation, translation, shear and scaling transforms.
 
     Args:
-        rotate_degree_range (union[float,tuple(float)]): degrees of rotation transform.
+        rotate_degree_range (union[float,tuple(float), list(float)]): degrees of rotation transform.
             Default: 10.
         rotate_range (bool):  random.uniform(self.rotate_degree_range[0], self.rotate_degree_range[1]) if true else np.choice(rotate_degree_range)
         max_translate_ratio (float): Maximum ratio of translation.
@@ -287,12 +288,14 @@ class RandomAffine:
         self.p = p
 
         self.rotate_range = rotate_range
-        if isinstance(rotate_degree_range, Tuple):
-            assert 2 == len(rotate_degree_range)
+        if self.rotate_range:  # random.uniform(self.rotate_degree_range[0], self.rotate_degree_range[1])
+            assert (isinstance(rotate_degree_range, Tuple) or isinstance(rotate_degree_range, List)) and 2 == len(rotate_degree_range)
             self.rotate_degree_range = rotate_degree_range
-        else:
-            self.rotate_degree_range = (rotate_degree_range, rotate_degree_range)
-            self.rotate_range = False
+        else:  # random.choice
+            if isinstance(rotate_degree_range, Tuple) or isinstance(rotate_degree_range, List):
+                self.rotate_degree_range = rotate_degree_range
+            else:
+                self.rotate_degree_range = (rotate_degree_range, rotate_degree_range)
 
         self.max_translate_ratio = max_translate_ratio
         self.border_val = border_val
