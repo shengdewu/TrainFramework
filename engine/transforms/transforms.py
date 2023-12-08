@@ -699,7 +699,7 @@ class BasicColorTransform(ABC):
     def __call__(self, results):
         if random.random() < self.p:
             params = self.get_params(results)
-            for key in results['color_fiedls']:
+            for key in results['color_fields']:
                 results[key] = self.apply(results[key], **params)
         return results
 

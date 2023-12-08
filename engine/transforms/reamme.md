@@ -2,7 +2,7 @@
 * 输入格式介绍 
 ```python
 result = dict(
-    color_fiedls=['img'],  #需要做颜色扰动的字段
+    color_fields=['img'],  #需要做颜色扰动的字段
     img_fields=['img', 'mask'], #需要做形变的字段
     pts_fields=['pts'],    #需要做点位增强的字段
     bbox_fields=['bbox'],  #需要做框增强的字段
@@ -67,7 +67,7 @@ result = dict(
     transformers = TransformCompose(cfg)
 
     result = dict(
-        color_fiedls=['img'],  #需要做颜色扰动的字段
+        color_fields=['img'],  #需要做颜色扰动的字段
         img_fields=['img', 'mask'], #需要做形变的字段
         pts_fields=['pts'],    #需要做点位增强的字段
         bbox_fields=['bbox'],  #需要做框增强的字段
@@ -75,8 +75,8 @@ result = dict(
         mask=np.ndarray, #掩码
         pts=np.ndarray,  #点位 [[x,y], ...]
         bbox=np.ndarray  #框 [[x1, y1, x2, y2], ...]
-        img_shape=ori_img.shape[:2],
-        ori_shape=ori_img.shape[:2]
+        img_shape=ori_img.shape[:2],  #可以不填
+        ori_shape=ori_img.shape[:2] #可以不填
     )
 
     result = transformer(result)

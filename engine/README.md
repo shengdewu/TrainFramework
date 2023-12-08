@@ -110,7 +110,7 @@ class MyDataset(EngineDataSet):
         results['img_shape'] = img.shape[:2]
         results['ori_shape'] = results['img_shape']
         results['img_fields'] = ['img']
-        results['color_fiedls'] = ['img']
+        results['color_fields'] = ['img']
 
         results = self.transformate(results)
 
