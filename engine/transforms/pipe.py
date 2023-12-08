@@ -46,7 +46,7 @@ class TransformCompose:
             kwargs['ori_shape'] = base_shape
             logging.warning('the ori_shape not equal the shape of the field of img_fields or color_fields')
 
-        return kwargs
+        return
 
     def __call__(self, kwargs: Dict):
         if 'img_fields' not in kwargs.keys() and 'color_fields' not in kwargs.keys():
