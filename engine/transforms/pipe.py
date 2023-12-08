@@ -41,11 +41,8 @@ class TransformCompose:
 
         if kwargs.get('img_shape', (0, 0)) != base_shape:
             kwargs['img_shape'] = base_shape
-            logging.warning('the img_shape not equal the shape of the field of img_fields or color_fields')
         if kwargs.get('ori_shape', (0, 0)) != base_shape:
             kwargs['ori_shape'] = base_shape
-            logging.warning('the ori_shape not equal the shape of the field of img_fields or color_fields')
-
         return
 
     def __call__(self, kwargs: Dict):
