@@ -2,7 +2,8 @@
 * 输入格式介绍 
 ```python
 result = dict(
-    color_fiedls=['img', 'mask],  #需要做颜色扰动的字段
+    color_fiedls=['img'],  #需要做颜色扰动的字段
+    img_fields=['img', 'mask'], #需要做形变的字段
     pts_fields=['pts'],    #需要做点位增强的字段
     bbox_fields=['bbox'],  #需要做框增强的字段
     img=np.ndarray,  #图像
@@ -66,7 +67,8 @@ result = dict(
     transformers = TransformCompose(cfg)
 
     result = dict(
-        color_fiedls=['img', 'mask],  #需要做颜色扰动的字段
+        color_fiedls=['img'],  #需要做颜色扰动的字段
+        img_fields=['img', 'mask'], #需要做形变的字段
         pts_fields=['pts'],    #需要做点位增强的字段
         bbox_fields=['bbox'],  #需要做框增强的字段
         img=np.ndarray,  #图像
