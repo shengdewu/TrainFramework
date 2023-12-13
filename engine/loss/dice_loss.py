@@ -32,6 +32,7 @@ class _DiceLossBase(torch.nn.Module):
             generalized_metric: bool = False,
             weight: Union[float, torch.Tensor] = 1.0,
             reduction: Union[_LossReduction, str] = "mean",
+            lambda_weight: float = 1.
     ):
         """
         :param apply_softmax: Whether to apply softmax to the predictions.
@@ -48,6 +49,7 @@ class _DiceLossBase(torch.nn.Module):
             `mean`: the sum of the output will be divided by the number of elements in the output.
             `sum`: the output will be summed.
             Default: `mean`
+        :param lambda_weight
         """
         super().__init__()
         self.ignore_index = ignore_index
@@ -57,6 +59,7 @@ class _DiceLossBase(torch.nn.Module):
         self.reduce_over_batches = reduce_over_batches
         self.generalized_metric = generalized_metric
         self.weight = weight
+        self.lambda_weight = lambda_weight
         if self.generalized_metric:
             assert self.weight is None, "Cannot use structured Loss with weight classes and generalized normalization"
             if self.eps > 1e-12:
@@ -164,7 +167,7 @@ class _DiceLossBase(torch.nn.Module):
         losses = self._calc_loss(numerator, denominator)
         if self.weight is not None:
             losses *= self.weight
-        return self.apply_reduce(losses)
+        return self.apply_reduce(losses) * self.lambda_weight
 
 
 @LOSS_ARCH_REGISTRY.register()
@@ -174,7 +177,7 @@ class BinaryDiceLoss(_DiceLossBase):
     Except target to be a binary map with 0 and 1 values.
     """
 
-    def __init__(self, apply_sigmoid: bool = True, smooth: float = 1.0, eps: float = 1e-5, weight: Union[float, torch.Tensor] = 1.0):
+    def __init__(self, apply_sigmoid: bool = True, smooth: float = 1.0, eps: float = 1e-5, weight: Union[float, torch.Tensor] = None, lambda_weight: float = 1.):
         """
         :param apply_sigmoid: Whether to apply sigmoid to the predictions.
         :param smooth: laplace smoothing, also known as additive smoothing. The larger smooth value is, closer the dice
@@ -182,7 +185,7 @@ class BinaryDiceLoss(_DiceLossBase):
             As mentioned in: https://github.com/pytorch/pytorch/issues/1249#issuecomment-337999895
         :param eps: epsilon value to avoid inf.
         """
-        super().__init__(apply_softmax=False, ignore_index=None, smooth=smooth, eps=eps, reduce_over_batches=False, weight=weight)
+        super().__init__(apply_softmax=False, ignore_index=None, smooth=smooth, eps=eps, reduce_over_batches=False, weight=weight, lambda_weight=lambda_weight)
         self.apply_sigmoid = apply_sigmoid
 
     def forward(self, predict: torch.tensor, target: torch.tensor) -> torch.tensor:
@@ -213,7 +216,8 @@ class GeneralizedDiceLoss(_DiceLossBase):
             eps: float = 1e-17,
             reduce_over_batches: bool = False,
             reduction: Union[_LossReduction, str] = "mean",
-            weight: Union[float, torch.Tensor] = 1.0
+            weight: Union[float, torch.Tensor] = None,
+            lambda_weight: float = 1.0
     ):
         """
         :param apply_softmax: Whether to apply softmax to the predictions.
@@ -238,4 +242,5 @@ class GeneralizedDiceLoss(_DiceLossBase):
             generalized_metric=True,
             weight=weight,
             reduction=reduction,
+            lambda_weight=lambda_weight
         )
