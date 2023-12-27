@@ -83,8 +83,8 @@
     fake1 = g_model1(input_data)
     fake2 = g_model2(input_data)
 
-    loss1_cfg = (fake1, target1)
-    loss2_cfg = (fake2, target2)
+    loss1_cfg = ((fake1, target1),)
+    loss2_cfg = ((fake2, target2),)
     total_loss = loss_cfg(dict(loss1=loss1_cfg, loss2=loss2_cfg))
 ```  
 ##### C 每个key下的损失函数的输入可以不同,这种情况下建议使用 input_name指出
