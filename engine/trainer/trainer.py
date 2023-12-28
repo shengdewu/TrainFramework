@@ -177,7 +177,7 @@ class BaseTrainer:
                     if 0 == (epoch + 1) % self.gradient_accumulation_batch:
                         self.checkpoint.save(self.model, epoch)
 
-            if int(epoch + 1) % self.checkpoint.check_period == 0:
+            if epoch % self.checkpoint.check_period == 0:
                 logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
 
             self.iterate_after(epoch)
