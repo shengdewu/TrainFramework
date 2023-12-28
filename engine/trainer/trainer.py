@@ -160,25 +160,27 @@ class BaseTrainer:
         self.before_loop()
 
         self.model.enable_train()
+        loss_dict = dict()
         for epoch in range(self.start_iter, self.max_iter):
             if self.enable_epoch_method:
-                loss_dict = dict()
                 for iteration, data in enumerate(self.train_data_loader):
                     loss_dict = self.model(data, epoch=epoch, data_epoch=iteration, accumulation_epoch=self.gradient_accumulation_batch)
 
-                self.iterate_after(epoch, loss_dict)
                 self.checkpoint.save(self.model, epoch)
             else:
                 data = next(self.train_data_loader)
                 loss_dict = self.model(data, epoch=epoch, data_epoch=epoch, accumulation_epoch=self.gradient_accumulation_batch)
 
                 if self.gradient_accumulation_batch < 1:
-                    self.iterate_after(epoch, loss_dict)
                     self.checkpoint.save(self.model, epoch)
                 else:
                     if 0 == (epoch + 1) % self.gradient_accumulation_batch:
-                        self.iterate_after(epoch, loss_dict)
                         self.checkpoint.save(self.model, epoch)
+
+            if int(epoch + 1) % self.checkpoint.check_period == 0:
+                logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
+
+            self.iterate_after(epoch)
 
         self.checkpoint.save(self.model, self.max_iter)
 
@@ -188,10 +190,8 @@ class BaseTrainer:
     def after_loop(self):
         pass
 
-    def iterate_after(self, epoch, loss_dict):
-        if int(epoch + 0.5) % self.checkpoint.check_period == 0:
-            logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
-        return
+    def iterate_after(self, epoch):
+        pass
 
     def resume_or_load(self, resume=False):
         """
