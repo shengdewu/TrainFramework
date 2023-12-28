@@ -41,6 +41,14 @@ class BaseTrainer:
         self.output = cfg.OUTPUT_DIR
         self.enable_epoch_method = cfg.TRAINER.ENABLE_EPOCH_METHOD
 
+        self.gradient_accumulation_batch = int(cfg.SOLVER.GRADIENT_ACCUMULATION_BATCH)
+
+        if self.gradient_accumulation_batch > 1:
+            self.train_batch_size = cfg.SOLVER.TRAIN_PER_BATCH // self.gradient_accumulation_batch
+            assert self.train_batch_size * self.gradient_accumulation_batch == cfg.SOLVER.TRAIN_PER_BATCH, 'the TRAIN_PER_BATCH must be divisible by GRADIENT_ACCUMULATION_BATCH'
+        else:
+            self.train_batch_size = cfg.SOLVER.TRAIN_PER_BATCH
+
         self.model = self.create_model(cfg)
         self.model.enable_train()
         self.model.enable_distribute(cfg)
@@ -60,7 +68,7 @@ class BaseTrainer:
         self.set_collate_fn(cfg)
 
         train_dataset, valid_dataset = self.create_dataset(cfg)
-        total_data_per_epoch = len(train_dataset) / cfg.SOLVER.TRAIN_PER_BATCH
+        total_data_per_epoch = len(train_dataset) / self.train_batch_size
         if self.enable_epoch_method:
             train_data_loader, test_data_loader = self.create_dataloader(cfg, train_dataset, valid_dataset)
             actual_epoch = self.max_iter
@@ -74,6 +82,7 @@ class BaseTrainer:
 
         format_string = 'create train dataset {}\n'.format(train_dataset)
         format_string += 'create valid dataset {}\n'.format(valid_dataset)
+        format_string += 'enable gradient accumulation {}, train_batch_size={}\n'.format(self.gradient_accumulation_batch, self.train_batch_size)
         format_string += 'there are {} data in one epoch and actually trained for {} epoch'.format(total_data_per_epoch, actual_epoch)
 
         logging.getLogger(self.default_log_name).info(format_string)
@@ -85,7 +94,7 @@ class BaseTrainer:
         is_group = cfg.DATALOADER.get('GROUP_SAMPLER', False)
         if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
             train_data_loader = engine_data_loader.create_distribute_iterable_data_loader(train_dataset,
-                                                                                          batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                                          batch_size=self.train_batch_size,
                                                                                           rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
                                                                                           world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
                                                                                           num_workers=cfg.DATALOADER.NUM_WORKERS,
@@ -94,7 +103,7 @@ class BaseTrainer:
                                                                                           is_group=is_group)
         else:
             train_data_loader = engine_data_loader.create_iterable_data_loader(train_dataset,
-                                                                               batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                               batch_size=self.train_batch_size,
                                                                                num_workers=cfg.DATALOADER.NUM_WORKERS,
                                                                                collate_fn=self.collate_train_fn,
                                                                                pin_memory=pin_memory,
@@ -111,7 +120,7 @@ class BaseTrainer:
         pin_memory = cfg.TRAINER.DEVICE != 'cpu'
         if cfg.TRAINER.PARADIGM.TYPE == 'DDP' and cfg.TRAINER.PARADIGM.GPU_ID is not None:
             train_data_loader = engine_data_loader.create_distribute_data_loader(train_dataset,
-                                                                                 batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                                                 batch_size=self.train_batch_size,
                                                                                  rank=cfg.TRAINER.PARADIGM.GLOBAL_RANK,
                                                                                  world_size=cfg.TRAINER.PARADIGM.WORLD_SIZE,
                                                                                  num_workers=cfg.DATALOADER.NUM_WORKERS,
@@ -119,7 +128,7 @@ class BaseTrainer:
                                                                                  pin_memory=pin_memory)
         else:
             train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                            batch_size=cfg.SOLVER.TRAIN_PER_BATCH,
+                                                            batch_size=self.train_batch_size,
                                                             num_workers=cfg.DATALOADER.NUM_WORKERS,
                                                             shuffle=True,
                                                             drop_last=False,
@@ -155,13 +164,21 @@ class BaseTrainer:
             if self.enable_epoch_method:
                 loss_dict = dict()
                 for iteration, data in enumerate(self.train_data_loader):
-                    loss_dict = self.model(data, epoch=epoch)
+                    loss_dict = self.model(data, epoch=epoch, data_epoch=iteration, accumulation_epoch=self.gradient_accumulation_batch)
+
+                self.iterate_after(epoch, loss_dict)
+                self.checkpoint.save(self.model, epoch)
             else:
                 data = next(self.train_data_loader)
-                loss_dict = self.model(data, epoch=epoch)
+                loss_dict = self.model(data, epoch=epoch, data_epoch=epoch, accumulation_epoch=self.gradient_accumulation_batch)
 
-            self.iterate_after(epoch, loss_dict)
-            self.checkpoint.save(self.model, epoch)
+                if self.gradient_accumulation_batch < 1:
+                    self.iterate_after(epoch, loss_dict)
+                    self.checkpoint.save(self.model, epoch)
+                else:
+                    if 0 == (epoch + 1) % self.gradient_accumulation_batch:
+                        self.iterate_after(epoch, loss_dict)
+                        self.checkpoint.save(self.model, epoch)
 
         self.checkpoint.save(self.model, self.max_iter)
 

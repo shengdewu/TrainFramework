@@ -37,7 +37,7 @@ def compose_py_model():
 
 
 def get_version() -> str:
-    return '2.2.4'
+    return '2.2.5'
 
 
 setuptools.setup(

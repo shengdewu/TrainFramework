@@ -30,6 +30,7 @@ def ema_wrapper(func):
         else:
             result = func(cls, data)
         return result
+
     return ema_func
 
 
@@ -151,6 +152,30 @@ class BaseModel(abc.ABC):
         """
         raise NotImplemented('the generator must be implement')
 
+    def __normal_step(self, loss: torch.Tensor, epoch: int):
+        self.g_optimizer.zero_grad()
+        loss.backward()
+        self.g_optimizer.step()
+
+        if hasattr(self, self.EMA_KEY):
+            getattr(self, self.EMA_KEY).update(self.g_model.parameters())
+
+        self.g_scheduler.step(epoch)
+        return
+
+    def __accumulation_step(self, loss: torch.Tensor, epoch: int, accumulation_epoch: int, data_eopch: int):
+        loss = loss / accumulation_epoch
+        loss.backward()  # pytorch 的 backward 做的是梯度累加
+        if 0 == (data_eopch + 1) % accumulation_epoch:
+            self.g_optimizer.step()
+            self.g_optimizer.zero_grad()
+
+            if hasattr(self, self.EMA_KEY):
+                getattr(self, self.EMA_KEY).update(self.g_model.parameters())
+
+            self.g_scheduler.step(epoch)
+        return
+
     def __call__(self, data, *, epoch=None, **kwargs):
         """
         :param data: type is dict
@@ -164,14 +189,13 @@ class BaseModel(abc.ABC):
         if self.g_model.training:
             loss = self.run_step(data=data, epoch=epoch, **kwargs)
 
-            self.g_optimizer.zero_grad()
-            loss.backward()
-            self.g_optimizer.step()
+            accumulation_epoch = kwargs.get('accumulation_epoch', -1)
 
-            if hasattr(self, self.EMA_KEY):
-                getattr(self, self.EMA_KEY).update(self.g_model.parameters())
-
-            self.g_scheduler.step(epoch)
+            if accumulation_epoch > 1:
+                data_epoch = kwargs.get('data_epoch', 0)
+                self.__accumulation_step(loss, epoch, accumulation_epoch, data_epoch)
+            else:
+                self.__normal_step(loss, epoch)
 
             lr = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
             return {'total_loss': loss.detach().item(), 'lr': lr}

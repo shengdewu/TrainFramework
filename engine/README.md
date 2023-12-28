@@ -280,7 +280,8 @@ trainer = dict(
 ### 3. 优化器配置
 ```python
 solver = dict(
-    train_per_batch=8,
+    gradient_accumulation_batch=-1,  # 是否启用梯度累加 > 1 启用
+    train_per_batch=8,  # 当 gradient_accumulation_batch > 1 时，真实的 train_per_batch = train_per_batch // gradient_accumulation_batch 
     test_per_batch=8,
     max_iter=200000,
     max_keep=20,
