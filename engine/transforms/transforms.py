@@ -130,7 +130,20 @@ class Resize:
         self.keep_ratio = keep_ratio
         self.is_padding = is_padding
         self.clip_border = clip_border
-        self.interpolation = F.INTER_CV_TYPE.get(interpolation, F.INTER_CV_TYPE['INTER_LINEAR'])
+        self.interpolation = list()
+        inter_type = list(F.INTER_CV_TYPE.keys())
+        if isinstance(interpolation, List) or isinstance(interpolation, Tuple):
+            for inter in interpolation:
+                if inter not in inter_type:
+                    continue
+                if inter in self.interpolation:
+                    continue
+                self.interpolation.append(inter)
+            if len(self.interpolation) == 0:
+                self.interpolation.append('INTER_LINEAR')
+        else:
+            self.interpolation.append(interpolation if interpolation in inter_type else 'INTER_LINEAR')
+
         if not self.keep_ratio:
             self.is_padding = False
         return
@@ -150,6 +163,7 @@ class Resize:
         results['img_shape'] = (new_h, new_w)
         results['scale'] = (scale_w, scale_h)
         results['keep_ratio'] = self.keep_ratio
+        results['interpolation'] = random.choice(self.interpolation)
         return results
 
     def __call__(self, results):
@@ -162,8 +176,9 @@ class Resize:
 
     def _resize_img(self, results):
         new_img_shape = results['img_shape']
+        interpolation = F.INTER_CV_TYPE[results['interpolation']]
         for key in results.get('img_fields', []):
-            img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=self.interpolation)
+            img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=interpolation)
             if self.is_padding:
                 height, width = img.shape[0], img.shape[1]
                 if min(height, width) < self.target_size:
