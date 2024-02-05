@@ -132,6 +132,12 @@ class _DiceLossBase(torch.nn.Module):
                 labels_one_hot = target.unsqueeze(1)
             else:
                 labels_one_hot = self.to_one_hot(target, num_classes=predict.shape[1])
+        elif target.dim() == 4 and target.shape[1] == 1:
+            target = target[:, 0, :, :]
+            if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
+                labels_one_hot = target.unsqueeze(1)
+            else:
+                labels_one_hot = self.to_one_hot(target, num_classes=predict.shape[1])
         else:
             raise AssertionError(
                 f"Mismatch of target shape: {target.size()} and prediction shape: {predict.size()},"

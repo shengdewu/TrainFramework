@@ -37,6 +37,9 @@ class NLLLoss(nn.NLLLoss):
         self.lambda_weight = lambda_weight
 
     def forward(self, input_tensor: Tensor, target_tensor: Tensor) -> Tensor:
+        if target_tensor.dim() == input_tensor.dim():
+            assert target_tensor.shape[1] == 1
+            target_tensor = target_tensor[:, 0, :, :]
         return super(NLLLoss, self).forward(input_tensor, target_tensor) * self.lambda_weight
 
 
@@ -99,6 +102,9 @@ class CrossEntropyLoss(nn.CrossEntropyLoss):
         self.lambda_weight = lambda_weight
 
     def forward(self, input_tensor: Tensor, target_tensor: Tensor) -> Tensor:
+        if target_tensor.dim() == input_tensor.dim():
+            assert target_tensor.shape[1] == 1
+            target_tensor = target_tensor[:, 0, :, :]
         return super(CrossEntropyLoss, self).forward(input_tensor, target_tensor) * self.lambda_weight
 
 
