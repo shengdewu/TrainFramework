@@ -227,7 +227,7 @@ class Resize:
         for key in results.get('pts_fields', []):
             pts = results[key] * scale
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
-            pts = pts + [pad_left, pad_top, pad_left, pad_top]
+            pts = pts + [pad_left, pad_top]
             if self.clip_border:
                 pts[:, 0] = np.clip(pts[:, 0], 0, width)
                 pts[:, 1] = np.clip(pts[:, 1], 0, height)
