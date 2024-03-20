@@ -277,14 +277,10 @@ class RandomAffine:
             are allowed to cross the border of images. Therefore, we don't
             need to clip the gt bboxes in these cases. Defaults to True.
         border_ratio rotate
-        skip_filter (bool): Whether to skip filtering rules. If it
-            is True, the filter rule will not be applied, and the
-            `min_bbox_size` and `min_area_ratio` and `max_aspect_ratio`
-            is invalid. Default to True.
     """
 
     def __init__(self,
-                 rotate_degree_range: Union[float, Tuple] = (-10, 10),
+                 rotate_degree_range: Union[float, Tuple, List] = (-10, 10),
                  rotate_range=True,
                  max_translate_ratio=0,
                  scaling_ratio_range=(1., 1.),
@@ -296,7 +292,6 @@ class RandomAffine:
                  min_area_ratio=2.,
                  max_aspect_ratio=20,
                  border_ratio=1.2,
-                 skip_filter=True,
                  ):
         assert 0 <= max_translate_ratio <= 1
 
@@ -320,7 +315,6 @@ class RandomAffine:
         self.max_aspect_ratio = max_aspect_ratio
         self.scaling_ratio_range = scaling_ratio_range
         self.max_shear_degree = max_shear_degree
-        self.skip_filter = skip_filter
         self.border_ratio = border_ratio if border_ratio > 1 else 1
         return
 
