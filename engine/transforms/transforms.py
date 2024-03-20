@@ -857,7 +857,7 @@ class RandomBrightness(BasicColorTransform):
 class RandomContrast(BasicColorTransform):
     def __init__(self, contrast_limit=0.2, p=0.5):
         """
-        :param contrast_limit: disable brightness when  brightness_limit = 0
+        :param contrast_limit: disable brightness when  contrast_limit = 0
         :param p:
         """
         super(RandomContrast, self).__init__(p, )
@@ -883,7 +883,7 @@ class RandomContrast(BasicColorTransform):
 class RandomSaturation(BasicColorTransform):
     def __init__(self, saturation_limit=0.2, p=0.5):
         """
-        :param saturation_limit: disable brightness when  brightness_limit = 0
+        :param saturation_limit: disable brightness when  saturation_limit = 0
         :param p:
         """
         super(RandomSaturation, self).__init__(p, )
@@ -909,7 +909,7 @@ class RandomSaturation(BasicColorTransform):
 class RandomHue(BasicColorTransform):
     def __init__(self, hue_limit=0.2, p=0.5):
         """
-        :param hue_limit: disable brightness when  brightness_limit = 0
+        :param hue_limit: disable brightness when  hue_limit = 0
         :param p:
         """
         super(RandomHue, self).__init__(p, )
