@@ -4,9 +4,14 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 *所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>
 
 ## 依赖
-参见
-- cuda102  [dockerfile](docker/Dockerfile.cu102) 支持 cuda 10
+参见  
+
+- cuda102  [dockerfile](docker/Dockerfile.cu102) 支持 cuda 10  
+
 - cuda111 [dockerfile](docker/Dockerfile) 支持 cuda 11  
+
+- [docker](https://docs.docker.com/engine/install/ubuntu/)安装  
+
 
 ## 编译与安装[docker]
 
