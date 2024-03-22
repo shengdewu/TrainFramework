@@ -1,17 +1,25 @@
 <img src="doc/title.jpg" width="100">
 
-TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint处理，通用的损失函数，恢复训练等功能<br>
-*所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>
+TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint处理，通用的损失函数，恢复训练等功能<br>  
 
-## 依赖
-参见  
+*所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>  
+
+*依赖 ubuntu18.04 和 ubuntu20.04*<br>  
+
+
+## 环境  
+
+- [python3.6 或者 python3.7](https://www.python.org/downloads/source/)  
+
+- [docker](https://docs.docker.com/engine/install/ubuntu/)安装  
 
 - cuda102  [dockerfile](docker/Dockerfile.cu102) 支持 cuda 10  
 
 - cuda111 [dockerfile](docker/Dockerfile) 支持 cuda 11  
 
-- [docker](https://docs.docker.com/engine/install/ubuntu/)安装  
-
+## 依赖  
+- 如果不使用docker，则需要安装[依赖](docker/requirements.txt)  
+ 
 
 ## 编译与安装[docker]
 
