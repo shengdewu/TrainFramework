@@ -26,7 +26,7 @@ __all__ = [
     'RandomGamma',
     'RandomCLAHE',
     'RandomCompress',
-    'RandomSharpen'，
+    'RandomSharpen',
     'Pad32'
 ]
 
@@ -592,7 +592,7 @@ class RandomResize(Resize):
 
     def __init__(self, max_edge_length, padding_size, interpolation='INTER_LINEAR', keep_ratio=True, clip_border=True):
         super(RandomResize, self).__init__(padding_size, interpolation, keep_ratio, True, clip_border)
-
+        self.is_padding = True
         if isinstance(max_edge_length, int):
             max_edge_length = (max_edge_length, max_edge_length)
         self.max_edge_length = [length for length in max_edge_length if length < padding_size]

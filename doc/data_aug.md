@@ -250,7 +250,6 @@
     |max_edge_length | Union[int, List] | 从max_edge_length随机选择一个尺寸来resize |
     |padding_size | int | 缩放后在填充后的大小| 
     |keep_ratio| bool | 如果是true表示按照最长边缩放到target_size， 否则长和宽都缩放到target_size |
-    |is_padding| bool | 只对keep_ratio=True生效，表示短边要填充到target_size |
     |clip_border| bool |  是否剪切掉在图像外面的物体 对点和box生效 |        
 
 ---               
