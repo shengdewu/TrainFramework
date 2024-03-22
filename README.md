@@ -1,4 +1,4 @@
-<img src=".git/title.jpg" width="100">
+<img src="doc/title.jpg" width="100">
 
 TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint处理，通用的损失函数，恢复训练等功能<br>
 *所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>
