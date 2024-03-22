@@ -26,7 +26,8 @@ __all__ = [
     'RandomGamma',
     'RandomCLAHE',
     'RandomCompress',
-    'RandomSharpen'
+    'RandomSharpen'，
+    'Pad32'
 ]
 
 

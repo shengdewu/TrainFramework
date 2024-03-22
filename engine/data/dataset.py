@@ -8,8 +8,9 @@ class EngineDataSet(torch.utils.data.Dataset, ABC):
     def __init__(self, transformers: List):
         super(EngineDataSet, self).__init__()
         self.transformers = TransformCompose(transformers)
+        return
 
-    def transformate(self, params: Dict):
+    def data_pipeline(self, params: Dict):
         return self.transformers(params)
 
     def __repr__(self):
