@@ -370,50 +370,51 @@ solver = dict(
     ),
     discriminator = [
         dict(name='dmodel_name1', 
-             params=dict(lr_scheduler=dict(
-                                            enabled=False,
-                                            type='MultiStepLR',
-                                            params=dict(
-                                                milestones=[80000, 100000, 125000],
-                                                gamma=0.1
-                                            )
-                         ), 
-                         optimizer=dict(
-                                        type='AdamW',
-                                        params=dict(
-                                            weight_decay=0.0001,
-                                            betas=[0.9, 0.999],
-                                            lr=0.0001
-                                        ),
-                                        clip_gradients=dict(
-                                            enabled=False,
-                                        )                         
-                        )
+             params=dict(
+                    lr_scheduler=dict(
+                                enabled=False,
+                                type='MultiStepLR',
+                                params=dict(
+                                    milestones=[80000, 100000, 125000],
+                                    gamma=0.1)
+                    ), 
+                    optimizer=dict(
+                                type='AdamW',
+                                params=dict(
+                                    weight_decay=0.0001,
+                                    betas=[0.9, 0.999],
+                                    lr=0.0001
+                                ),
+                                clip_gradients=dict(
+                                    enabled=False,
+                                )
+                    )
             )
         ),
         dict(name='dmodel_name2', 
-             params=dict(lr_scheduler=dict(
-                                            enabled=False,
-                                            type='MultiStepLR',
-                                            params=dict(
-                                                milestones=[80000, 100000, 125000],
-                                                gamma=0.1
-                                            )
-                         ), 
-                         optimizer=dict(
-                                        type='AdamW',
-                                        params=dict(
-                                            weight_decay=0.0001,
-                                            betas=[0.9, 0.999],
-                                            lr=0.0001
-                                        ),
-                                        clip_gradients=dict(
-                                            enabled=False,
-                                        )                         
-                        )
+             params=dict(
+                    lr_scheduler=dict(
+                                enabled=False,
+                                type='MultiStepLR',
+                                params=dict(
+                                    milestones=[80000, 100000, 125000],
+                                    gamma=0.1
+                                )
+                    ), 
+                    optimizer=dict(
+                                type='AdamW',
+                                params=dict(
+                                    weight_decay=0.0001,
+                                    betas=[0.9, 0.999],
+                                    lr=0.0001
+                                ),
+                                clip_gradients=dict(
+                                    enabled=False,
+                                )                         
+                    )
             )
-        ),    ]
-
+        ),    
+    ]
 )
 output_dir = '/data'
 output_log_name = 'my-log'

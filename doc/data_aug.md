@@ -2,7 +2,8 @@
 
 数据增强支持像素[图片，掩码等]、点[人脸点位，骨骼点位等]、框[人脸框，人体框等]的增强  
 
-### ***像素增强*** 
+### ***像素增强***
+ 
 ----
 #### RandomBrightness
 
@@ -131,11 +132,12 @@
     | brightness_by_max | bool | True： 亮度的调节基础值是图像数据类型的最大值， False： 亮度的调节基础值是图像数据的均值|
     | p | float | 生效的概率， 取值范围 [0, 1.0] |
 
----
+---  
 #### RandomGaussianBlur
 - 描述:  
     随机高斯模糊
 - parameters:  
+
     | name | type | description|
     | --- | --- | --- |
     | blur_limit| Union[float, Tuple[float]] | 高斯半径 如果是一个浮点数则取值范围是：[-blur_limit, blur_limit], 如果是元组则取值范围就是元组本身|
@@ -147,6 +149,7 @@
 - 描述:  
     图像灰度化
 - parameters:  
+
     | name | type | description|
     | --- | --- | --- |    
     | p | float | 生效的概率， 取值范围 [0, 1.0] |      
@@ -156,6 +159,7 @@
 - 描述:  
     使用指定的方差和均值归一化图像 y = (x - mean) / std 
 - parameters:  
+
     | name | type | description|
     | --- | --- | --- |   
     | mean | Union[float, Tuple[float]] | 每个通道需要被减的均值，如果是float则所有的通道共享同一个均值|  
@@ -169,6 +173,7 @@
     在随机亮度、对比度、饱和度、色调、高斯模糊、伽马矫正，对比度受限的自适应直方图均衡中随机顺序并依次执行以上所有操作
 
 - parameters:  
+
     | name | type | description|
     | --- | --- | --- |   
     | brightness_limit| Union[float, Tuple[float]] | 同 RandomBrightness |    
@@ -193,6 +198,7 @@
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的随机仿射变换，包括平移(translation)、缩放(scale)、旋转(rotation)和剪切(shear)
 - parameters: 
+
     | name | type | description|
     | --- | --- | --- |  
     | rotate_degree_range | Union[float, Tuple[float], List[float]] | 旋转的角度， 可以是一个float， 或者一个元组， 后者指定一系列的角度 |
@@ -213,6 +219,7 @@
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的随机翻转
 - parameters:  
+
     | name | type | description|
     | --- | --- | --- | 
     | direction | Union[str, List] | 翻转方向，取值必须是['horizontal', 'vertical', 'diagonal']其中的一个、几个或者全部| 
@@ -223,6 +230,7 @@
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的resize
 - parameters
+
     | name | type | description|
     | --- | --- | --- | 
     | target_size | int | 图片、类图片[皮肤蒙版]、点和框resize后的大小| 
@@ -236,6 +244,7 @@
 - 描述  
     随机缩放图片、类图片[皮肤蒙版]、点和框，再padding到指定大小
 - parameters  
+
     | name | type | description|
     | --- | --- | --- | 
     |max_edge_length | Union[int, List] | 从max_edge_length随机选择一个尺寸来resize |
@@ -249,6 +258,7 @@
 - 描述  
     随机裁剪图片、类图片[皮肤蒙版]、点和框
 - parameters
+
     | name | type | description|
     | --- | --- | --- | 
     | min_crop_ratio | float ｜ 长宽的最小裁剪比率 取值范围 [0, 1.0] |
@@ -334,9 +344,10 @@ transformers = TransformCompose(cfg)
             pad_offset=[top, bottom, left, right],
             scale=[w, h]
         )
-    ```
+    ```  
+  
     | name | type  | necessary | description |
-    | --- | --- | --- | -- |
+    | --- | --- | --- | --- |
     |color_fields | List | yes | [像素增强](#像素增强)中必须字段<br> 这个字段里面的都会执行 [像素增强](#像素增强) | 
     |img_fields | List | no | [空间增强](#空间增强)中需要执行<big>图片</big>增强的字段， 如果指定了空间增强，则这个字段必须|
     |pts_fields| List | no | [空间增强](#空间增强)中需要执行<big>点位</big>增强的字段， 如果指定了空间增强，则这个字段必须 |

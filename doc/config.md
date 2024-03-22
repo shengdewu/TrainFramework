@@ -47,6 +47,7 @@
 ---
 ## SOLVER
 - 优化器和学习率调度器配置  
+
     |名称| 类型 | 描述|  
     |---|---|---|  
     |GRADIENT_ACCUMULATION_BATCH| bool | 是否启用梯度累加,默认[-1] 关闭 <br> 当模型或者数据量大时，且资源不够，可以启用梯度累加|  
@@ -62,6 +63,7 @@
 
 #### EMA
 - 参数  
+
     |名称| 类型 | 描述|  
     |---|---|---|  
     |ENABLED| bool | 开关，默认关闭 [false] |
@@ -69,7 +71,8 @@
     |num_updates| int | DECAY_RATE 调整周期, 默认[None] |
 
 ### LR_SCHEDULER
-- 参数
+- 参数  
+
     |名称| 类型 | 描述|  
     |---|---|---|  
     | ENABLED | bool | 开关 默认[false]关闭 |
@@ -82,7 +85,8 @@
     - pytorch中的所有的学习率调度器，比如[ExponentialLR, LinearLR, MultiStepLR]
 
 ### OPTIMIZER  
-- 参数
+- 参数  
+
     |名称| 类型 | 描述|  
     |---|---|---|  
     | TYPE | str | 优化器, 比如 Adam |
@@ -94,7 +98,7 @@
 ## DATALOADER
 - 数据相关的参数， 包括数据增强，数据加载与创建
 
-# 运行参数
+# 运行参数  
 | 名称 | 类型| 描述 |
 |---|---|---| 
 | num-gpus |  int| 使用的GPU数量 |
