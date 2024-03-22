@@ -1,5 +1,26 @@
-#  损失函数说明[engine/loss]
-- 支持自定义和一部分pytorch的损失函数
+#  损失函数说明[engine/loss]  
+
+支持自定义和一部分pytorch的损失函数  
+ - [x] L1Loss  
+ - [x]  NLLLoss  
+ - [x]  MSELoss  
+ - [x]  BCELoss  
+ - [x]  BCEWithLogitsLoss  
+ - [x]  SmoothL1Loss  
+ - [x]  SoftMarginLoss  
+ - [x]  CrossEntropyLoss  
+ - [x]  MultiLabelSoftMarginLoss  
+ - [x]  TripletMarginLoss  
+ - [x]  TripletMarginWithDistanceLoss  
+ - [x]  BinaryDiceLoss
+ - [x]  GeneralizedDiceLoss
+ - [x]  IOULoss
+ - [x]  OnlineHardExampleMiningCELoss
+ - [x]  SSIMLoss
+ - [x]  VggLoss 
+
+
+<br>  
 
 ---
 ## 使用说明
