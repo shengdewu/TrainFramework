@@ -51,7 +51,7 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 
 ## 编译与安装[docker]
 
-1. 编译训练引擎
+### 1. 编译训练引擎
 ```python
 git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
 
@@ -59,12 +59,12 @@ python3 setup.py bdist_wheel
 
 ```
 
-2. 编译基础docker环境 [Dockerfile](docker/Dockerfile)
+### 2. 编译基础docker环境 [Dockerfile](docker/Dockerfile)
 ```python
 docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1.10
 ```
 
-3. 编译训练docker环境
+### 3. 编译训练docker环境
     - 根据[简单的使用](#简单的使用)实现训练模块
     - 定义自己的dockerfile
     ```python
@@ -216,61 +216,7 @@ if __name__ == '__main__':
     BaseScheduler().schedule()
 ```   
 
-## BaseGanModel 使用说明 针对GAN模型, 其他和BaseModel一致  
 
-```python
-from engine.model.gan_model import BaseGanModel
-from engine.model.build import BUILD_MODEL_REGISTRY
-from engine.loss.pipe import LossKeyCompose
-from codes.backbone.discriminator import Discriminator
-from codes.loss.gan_loss import GANLoss
-import torch
-
-@BUILD_MODEL_REGISTRY.register()
-class RetouchGanModel(BaseGanModel):
-    def __init__(self, cfg):
-        super(RetouchGanModel, self).__init__(cfg)
-        self.g_loss = LossKeyCompose(cfg.TRAINER.MODEL.LOSS, self.device)
-        self.gan_loss = GANLoss(use_lsgan=True)
-        return
-
-    def create_d_model(self, params) -> torch.nn.Module:
-        return Discriminator()
-
-    def dmodel_step(self, data, epoch=None, **kwargs):
-        img_tensor = data['img'].to(self.device)
-        gt_tensor = data['gt'].to(self.device)
-
-        fake_mask = self.g_model(img_tensor)
-
-        output_real_loss = self.dmodel_forward(dict(d_model1=dict(input_tensor=gt_tensor)))
-        output_fake_loss = self.dmodel_forward(dict(d_model1=dict(input_tensor=fake_mask.detach())))
-
-        d_loss = self.gan_loss(output_real_loss['d_model1'], True) + self.gan_loss(output_fake_loss['d_model1'], False)
-
-        total_loss = dict(d_model1=d_loss)
-        return total_loss
-
-    def gmodel_step(self, data, epoch=None, **kwargs):
-        img_tensor = data['img'].to(self.device)
-        gt_tensor = data['gt'].to(self.device)
-
-        fake = self.g_model(img_tensor)
-
-        loss_input = (fake, gt_tensor)
-
-        total_loss = self.g_loss(dict(loss1=loss_input))
-
-        return total_loss
-
-    def generator(self, data):
-        """
-        :param data:
-        :return:
-        """
-        return self.g_model(data.to(self.device))
-
-```
 ## 配置说明, 支持 python和yaml
 
 ### 1. 数据配置
