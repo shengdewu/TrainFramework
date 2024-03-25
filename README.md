@@ -2,7 +2,7 @@
 
 TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint，通用的损失函数模块<br>  
 
-*所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>  
+*所有模块都依赖[fvcore.common.registry]的注册机制*<br>  
 
 *依赖 ubuntu18.04 和 ubuntu20.04*<br>  
 
@@ -14,7 +14,7 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 
 - 调度器 解析配置，并确定训练方式[DP or DDP], 然后调度训练器来训练模型<br>
 
-- 训练器 负责管理数据、模型、checkpoint<br>
+- 训练器 负责管理数据、模型、checkpoint, 训练模型，与加载权重<br>
 
 - 模型 负责管理网络、优化器、学习率调度[他们的共同点是都有状态]<br>
 
@@ -64,9 +64,12 @@ python3 setup.py bdist_wheel
 docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1.10
 ```
 
-### 3. 编译训练docker环境
-    - 根据[简单的使用](#简单的使用)实现训练模块
-    - 定义自己的dockerfile
+### 3. 编译训练docker环境  
+
+- 根据[简单的使用](#简单的使用)实现训练模块  
+
+- 定义自己的dockerfile  
+
     ```python
     FROM dl.nvidia/cuda:11.1-cudnn8-devel-torch.1.10 # 第2步中生成的镜像
     COPY codes /home/train                           # 自己的训练代码
@@ -75,11 +78,11 @@ docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1
     WORKDIR /home/train
     ENTRYPOINT ["python3", "train.py"]    
     ```
-    - 编译自己的训练代码
+- 编译自己的训练代码
     ```python
     docker build ./ -f Dockerfile -t train
     ```
-    - 训练 指定[运行参数](doc/config.md#运行参数)
+- 训练 指定[运行参数](doc/config.md#运行参数)开始训练  
     ```none
     docker run --gpus='"device=0"' --shm-size=20g -v /mnt:/mnt -t train --config-file /mnt/config/train.py --num-gpus 1
     ```
@@ -137,7 +140,7 @@ class MyModel(BaseModel):
         return scores
 ```    
 
-#### 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法
+#### 2. 继承BaseTrainer定义自己的trainer, 实现你需要的方法[`可以不实现`]
 ```python
 from engine.trainer.trainer import BaseTrainer
 from engine.trainer.build import BUILD_TRAINER_REGISTRY
@@ -285,10 +288,6 @@ trainer = dict(
             name='MyNetwork', #用户自定义的网络名
             my_network_param='my_network_param'
         ),
-        discriminator = [
-            dict(name='dmodel_name1', params=dict(name='Discriminator')), #必须和solver匹配
-            dict(name='dmodel_name2', params=dict(name='Discriminator'))
-        ],
         loss=dict(
             loss1=[
                 dict(name='CrossEntropyLoss', param=dict(lambda_weight=10.))
@@ -300,8 +299,7 @@ trainer = dict(
         ema=dict(
             enable=True,  # gender enable ema 只对 生成器有效
             decay_rate=0.995        
-        ),
-        g_step=1, #表示 g_model 训练间隔，只在 GAN中生效    
+        )  
     ),
 )
 ```
@@ -341,54 +339,7 @@ solver = dict(
                 enabled=False,
             )
         )
-    ),
-    discriminator = [
-        dict(name='dmodel_name1', 
-             params=dict(
-                    lr_scheduler=dict(
-                                enabled=False,
-                                type='MultiStepLR',
-                                params=dict(
-                                    milestones=[80000, 100000, 125000],
-                                    gamma=0.1)
-                    ), 
-                    optimizer=dict(
-                                type='AdamW',
-                                params=dict(
-                                    weight_decay=0.0001,
-                                    betas=[0.9, 0.999],
-                                    lr=0.0001
-                                ),
-                                clip_gradients=dict(
-                                    enabled=False,
-                                )
-                    )
-            )
-        ),
-        dict(name='dmodel_name2', 
-             params=dict(
-                    lr_scheduler=dict(
-                                enabled=False,
-                                type='MultiStepLR',
-                                params=dict(
-                                    milestones=[80000, 100000, 125000],
-                                    gamma=0.1
-                                )
-                    ), 
-                    optimizer=dict(
-                                type='AdamW',
-                                params=dict(
-                                    weight_decay=0.0001,
-                                    betas=[0.9, 0.999],
-                                    lr=0.0001
-                                ),
-                                clip_gradients=dict(
-                                    enabled=False,
-                                )                         
-                    )
-            )
-        ),    
-    ]
+    )
 )
 output_dir = '/data'
 output_log_name = 'my-log'
