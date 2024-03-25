@@ -1,11 +1,39 @@
 <img src="doc/title.jpg" width="100">
 
-TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint处理，通用的损失函数，恢复训练等功能<br>  
+TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint，通用的损失函数模块<br>  
 
 *所有模块都是通过依赖[fvcore.common.registry]的注册机制*<br>  
 
 *依赖 ubuntu18.04 和 ubuntu20.04*<br>  
 
+## 目标  
+
+实现了数据分布式和模型分布式训练、断点恢复训练<br>
+
+## 结构  
+
+- 调度器 解析配置，并确定训练方式[DP or DDP], 然后调度训练器来训练模型<br>
+
+- 训练器 负责管理数据、模型、checkpoint<br>
+
+- 模型 负责管理网络、优化器、学习率调度[他们的共同点是都有状态]<br>
+
+```none
+    调度器
+    ｜---训练器
+        ｜
+        ｜----数据
+        ｜
+        ｜----模型
+        ｜    ｜---网络
+        ｜    ｜---优化器
+        ｜    ｜---学习率调度器
+        ｜
+        ｜
+        ｜
+        ｜----checkpoint
+
+```
 
 ## 环境  
 
@@ -56,7 +84,7 @@ docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1
     docker run --gpus='"device=0"' --shm-size=20g -v /mnt:/mnt -t train --config-file /mnt/config/train.py --num-gpus 1
     ```
 
-
+<br>  
 
 ## 模块介绍
 * [配置](doc/config.md)的使用
