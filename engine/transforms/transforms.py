@@ -89,9 +89,6 @@ class Pad32:
             bboxes = results[key]
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
             bboxes = bboxes + [pad_left, pad_top, pad_left, pad_top]
-            if self.clip_border:
-                bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, width)
-                bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, height)
             results[key] = bboxes
         return
 
@@ -105,9 +102,6 @@ class Pad32:
             pts = results[key]
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
             pts = pts + [pad_left, pad_top, pad_left, pad_top]
-            if self.clip_border:
-                pts[:, 0] = np.clip(pts[:, 0], 0, width)
-                pts[:, 1] = np.clip(pts[:, 1], 0, height)
             results[key] = pts
         return
 
