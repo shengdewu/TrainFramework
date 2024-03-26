@@ -7,7 +7,7 @@
     - SOLVER
     - DATALOADER
     - OUTPUT_DIR 输出目录
-    - OUTPUT_LOG_NAME 输出日子名
+    - OUTPUT_LOG_NAME 输出目录
 
 ---
 ## TRAINER
