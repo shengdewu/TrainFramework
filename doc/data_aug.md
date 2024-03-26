@@ -5,7 +5,7 @@
 ### ***像素增强***
  
 ----
-#### RandomBrightness
+#### `RandomBrightness`
 
 - 描述:  
     随机调节图片的亮度
@@ -17,8 +17,10 @@
     |brightness_limit| Union[float, Tuple[float]] | 亮度的程度范围， 如果是一个浮点数则取值范围是：[1-brightness_limit, 1+brightness_limit], 如果是元组则取值范围就是元组本身|
     | p | float | 生效的概率， 取值范围 [0, 1.0] |  
 
----
-#### RandomContrast
+---  
+<br>  
+
+#### `RandomContrast`
 
 - 描述:  
     随机调节图片的对比度  
@@ -31,7 +33,10 @@
     | p | float | 生效的概率， 取值范围 [0, 1.0] |  
 
 ---  
-#### RandomSaturation
+<br>  
+
+#### `RandomSaturation`  
+
 - 描述:  
     随机调节图片的饱和度 
 
@@ -43,7 +48,10 @@
     | p | float | 生效的概率， 取值范围 [0, 1.0] |     
 
 ---      
-#### RandomHue
+<br>  
+
+#### `RandomHue`  
+
 - 描述:  
     随机调节图片的色度 
 
@@ -55,7 +63,10 @@
     | p | float | 生效的概率， 取值范围 [0, 1.0] |     
 
 ---    
-#### RandomGamma
+<br>  
+
+#### `RandomGamma`  
+
 - 描述:  
     随机gamma调节 
 
@@ -66,8 +77,11 @@
     | gamma_limit | Union[float, Tuple[float]] | 色度程度范围， 如果是一个浮点数则取值范围是：[-gamma_limit, gamma_limit], 如果是元组则取值范围就是元组本身 |
     | p | float | 生效的概率， 取值范围 [0, 1.0] |    
 
----
-#### RandomCLAHE
+---  
+<br>  
+
+#### `RandomCLAHE`  
+
 - 描述:  
     对图像使用 对比度受限的自适应直方图均衡化
 
@@ -79,8 +93,11 @@
     | tile_grid_size | Union[int, Tuple[int]] | 直方图均衡化的网格大小 如果是一个整数则值为 [tile_grid_size, tile_grid_size] 否则是元组本身
     | p | float | 生效的概率， 取值范围 [0, 1.0] | 
 
----
-#### RandomCompress  
+---  
+<br>  
+
+#### `RandomCompress`  
+
 - 描述:  
     随机图像质量压缩， 从指定的图像质量值中随机选择一个来压缩图片质量
 
@@ -94,8 +111,11 @@
     |compression_type | str | 图片类型 [jpg, webp]|
     | p | float | 生效的概率， 取值范围 [0, 1.0] |      
 
----
-#### RandomSharpen 
+---  
+<br>  
+
+#### `RandomSharpen`  
+
 - 描述:  
     随机图像质量压缩， 从指定的图像质量值中随机选择一个来压缩图片质量
 
@@ -107,8 +127,11 @@
     | lightness | Union[float, Tuple[float]] | 锐化图片的亮度范围 |
     | p | float | 生效的概率， 取值范围 [0, 1.0] |   
 
----
-#### RandomToneCurve  
+---  
+<br>  
+
+#### `RandomToneCurve`  
+
 - 描述:  
     通过操纵色调曲线来重新调整图像亮区和暗区之间的关系
 - parameters:  
@@ -118,8 +141,11 @@
     | scale| float | 标准方差，用于对随机距离进行采样以移动修改图像曲线的两个控制点， 取值范围 [0, 1.0] |
     | p | float | 生效的概率， 取值范围 [0, 1.0]
 
----
-#### RandomBrightnessContrast  
+---  
+<br>  
+
+#### `RandomBrightnessContrast`  
+
 - 描述:  
     随机调节图片的亮度和对比度  
 
@@ -133,7 +159,10 @@
     | p | float | 生效的概率， 取值范围 [0, 1.0] |
 
 ---  
-#### RandomGaussianBlur
+<br>  
+
+#### `RandomGaussianBlur`  
+
 - 描述:  
     随机高斯模糊
 - parameters:  
@@ -144,8 +173,11 @@
     | sigma_limit | Union[float, Tuple[float]] | 高斯方差 如果是一个浮点数则取值范围是：[-sigma_limit, sigma_limit], 如果是元组则取值范围就是元组本身 |
     | p | float | 生效的概率， 取值范围 [0, 1.0] |  
 
----    
-#### ToGray
+---  
+<br>  
+
+#### `ToGray`  
+
 - 描述:  
     图像灰度化
 - parameters:  
@@ -154,8 +186,11 @@
     | --- | --- | --- |    
     | p | float | 生效的概率， 取值范围 [0, 1.0] |      
 
----      
-#### Normalize  
+---  
+<br> 
+
+#### `Normalize`  
+
 - 描述:  
     使用指定的方差和均值归一化图像 y = (x - mean) / std 
 - parameters:  
@@ -166,8 +201,11 @@
     | std | Union[float, Tuple[float]] | 每个通道需要被除的方差，如果是float则所有的通道共享同一个方差| 
     | max_pixel_value | float | 图像对应的数据类型的最大值 |
 
----
-#### RandomColorJitter
+---  
+<br>  
+
+#### `RandomColorJitter`  
+
 - 描述:  
     随机颜色扰动  
     在随机亮度、对比度、饱和度、色调、高斯模糊、伽马矫正，对比度受限的自适应直方图均衡中随机顺序并依次执行以上所有操作
@@ -191,10 +229,15 @@
     | clahe_p | float | RandomCLAHE 的执行概率 范围[0, 1.0] |                       
 
 
+<br>  
+
 ### ***空间增强***  
 
----
-#### RandomAffine
+---  
+<br>  
+
+#### `RandomAffine`  
+
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的随机仿射变换，包括平移(translation)、缩放(scale)、旋转(rotation)和剪切(shear)
 - parameters: 
@@ -214,8 +257,11 @@
     | min_area_ratio| float| 原始的bbox与变换之后的 bbox 之间的面积比阈值 如果小于这个值将被移除|
     |max_aspect_ratio| float | 变换后的box的长和宽之间的比值 max(h/w, w/h) 大于这个阈值将被移除|
 
----
-#### RandomFlip
+---  
+<br>  
+
+#### `RandomFlip`  
+
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的随机翻转
 - parameters:  
@@ -225,8 +271,11 @@
     | direction | Union[str, List] | 翻转方向，取值必须是['horizontal', 'vertical', 'diagonal']其中的一个、几个或者全部| 
     | p | float | 生效的概率， 取值范围 [0, 1.0] | 
 
----
-#### Resize
+---  
+<br>  
+
+#### `Resize`  
+
 - 描述  
     实现图片、类图片[皮肤蒙版]、点和框的resize
 - parameters
@@ -239,8 +288,11 @@
     |is_padding| bool | 只对keep_ratio=True生效，表示短边要填充到target_size |
     |clip_border| bool |  是否剪切掉在图像外面的物体 对点和box生效 |
 
----
-#### RandomResize
+---  
+<br>  
+
+#### `RandomResize`  
+
 - 描述  
     随机缩放图片、类图片[皮肤蒙版]、点和框，再padding到指定大小
 - parameters  
@@ -252,8 +304,11 @@
     |keep_ratio| bool | 如果是true表示按照最长边缩放到target_size， 否则长和宽都缩放到target_size |
     |clip_border| bool |  是否剪切掉在图像外面的物体 对点和box生效 |        
 
----               
-#### RandomCrop
+---     
+<br>  
+
+#### `RandomCrop`  
+
 - 描述  
     随机裁剪图片、类图片[皮肤蒙版]、点和框
 - parameters
@@ -266,13 +321,16 @@
     |clip_border| bool |  是否剪切掉在图像外面的物体 对点和box生效 |  
     | p | float | 生效的概率， 取值范围 [0, 1.0] |
 
----
-#### Pad32 
+---  
+<br>  
+
+#### `Pad32`  
+
 - 描述  
     把增强内容pad到能被32整除  
 
+ <br>  
 
-      
 # 数据增强的使用  
 
 数据增强的使用是通过配置文件来初始化,可以是1个或多个  
@@ -367,6 +425,8 @@ transformers = TransformCompose(cfg)
     ```
 - 根据上述字段说明取出需要的内容  
 
+<br>  
+
 # 自定义用户的数据增强  
 
 ---
@@ -422,7 +482,9 @@ class CustomAug(BasicColorTransform):
 
 - 使用 参见[数据增强的使用](#数据增强的使用)  
 
----
+---  
+<br>  
+
 ## 空间增强
 
 - 实现的类里面必须要针对[数据输入格式](#使用)中的 img_fields，pts_fields， bbox_fields中的字段实现对应的方法， 参考[随机翻转](#randomflip)  

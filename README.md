@@ -2,9 +2,9 @@
 
 TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包含了数据增强，数据加载，checkpoint，通用的损失函数模块<br>  
 
-*所有模块都依赖[fvcore.common.registry]的注册机制*<br>  
+*所有模块都依赖[`fvcore.common.registry`]的注册机制*<br>  
 
-*依赖 ubuntu18.04 和 ubuntu20.04*<br>  
+*依赖 ubuntu18.04 或 ubuntu20.04*<br>  
 
 ## 目标  
 
@@ -15,11 +15,14 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 
 ## 结构  
 
-- 调度器 解析配置，并确定训练方式[DP or DDP], 然后调度训练器来训练模型<br>
+- `调度器` 负责解析配置，并确定训练方式[DP or DDP], 然后调度训练器来训练模型<br>
 
-- 训练器 负责管理数据、模型、checkpoint, 训练模型，与加载权重<br>
+- `训练器` 负责管理数据、模型、checkpoint, 训练模型，与加载权重<br>
 
-- 模型 负责管理网络、优化器、学习率调度[他们的共同点是都有状态]<br>
+- `模型` 负责管理网络、优化器、学习率调度[他们的共同点是都有状态]<br>
+
+    这个模型不是一般意义的模型，考虑到处理模型的状态，包括网络的状态，优化器的状态，学习率调度的状态， 把他们集合在一起方便管理, 所以这个模型就是三者的组合  
+
 
 ```none
     调度器
@@ -49,12 +52,14 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 - cuda111 [dockerfile](docker/Dockerfile) 支持 cuda 11  
 
 ## 依赖  
+
 - 如果不使用docker，则需要安装[依赖](docker/requirements.txt)  
- 
+ <br>  
 
 ## 编译与安装[docker]
 
-### 1. 编译训练引擎
+### 1. 编译训练引擎  
+
 ```python
 git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
 

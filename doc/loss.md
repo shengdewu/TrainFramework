@@ -58,7 +58,7 @@
     ```
 
 ---
-### LossKeyCompose  [推荐]
+### `LossKeyCompose`  [推荐]
 - 配置文件定义
     - name 损失函数的名称
     - param 损失函数的参数
@@ -193,6 +193,8 @@
             )
            
         ```  
+
+<br>  
 
 ## 自定义损失函数
 - 必须通过engine.loss.build.LOSS_ARCH_REGISTRY注册  

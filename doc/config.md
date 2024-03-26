@@ -19,11 +19,12 @@
     |ENABLE_EPOCH_METHOD| bool | 训练时数据的迭代方式 |
     | WEIGHTS | 字符串 | 预训练的权重路径，这个在训练时可以指定预训练的权重 |  
     | DEVICE | 字符串 | 训练时使用的设备 cpu or gpu ｜
-    | PARADIGM | dict | 训练的模型，单机还是分布式 参见[paradigm](#paradigm)|
+    | PARADIGM | dict | 训练的模型，单机还是分布式 参见[paradigm](#paradigm-用户配置无效)|
     | MODEL | dict | 训练时使用的模型, 参见[MODEL](#model)|  
 
 
-#### MODEL
+#### MODEL  
+
 - 参数  
     |名称| 类型 | 描述|  
     |---|---|---|  
@@ -33,6 +34,7 @@
 
 
 #### PARADIGM [用户配置无效]  
+
 - 参数  
 
     |名称| 类型 | 描述|  
@@ -44,8 +46,10 @@
     |NUM_PER_GPUS| int | 一台机器的GPU的总数 |    
 
 
----
-## SOLVER
+---  
+
+## SOLVER  
+
 - 优化器和学习率调度器配置  
 
     |名称| 类型 | 描述|  
