@@ -1,16 +1,22 @@
-# 配置文件介绍[engine/config/defaults.py]
+# [配置文件](../engine/config/defaults.py)介绍
 
-- 依赖 fvcore==0.1.5.post20210825
-- 支持 yaml格式和python格式
-- 配置文件分为 分为3个部分，分别是：
+- 依赖 fvcore==0.1.5.post20210825  
+
+- 支持 yaml格式和python格式  
+
+- 配置文件分为 分为3个部分，分别是  
+
     - TRAINER
     - SOLVER
     - DATALOADER
     - OUTPUT_DIR 输出目录
     - OUTPUT_LOG_NAME 输出目录
 
----
-## TRAINER
+---  
+<br>  
+
+## `TRAINER`  
+
 - 训练器的配置参数
 
     |名称| 类型 | 描述|  
@@ -23,6 +29,8 @@
     | MODEL | dict | 训练时使用的模型, 参见[MODEL](#model)|  
 
 
+<br>  
+
 #### MODEL  
 
 - 参数  
@@ -32,6 +40,7 @@
     |GENERATOR|dict| 在 gan模型中时生成器网络的的参数，在普通模型中是网络的参数|
     |DISCRIMINATOR| dict | 只用在gan模型中才生效, 判别式网络的参数|     
 
+<br>  
 
 #### PARADIGM [用户配置无效]  
 
@@ -48,7 +57,9 @@
 
 ---  
 
-## SOLVER  
+<br>  
+
+## `SOLVER`  
 
 - 优化器和学习率调度器配置  
 
@@ -61,11 +72,12 @@
     | MAX_KEEP | int | checkpoint 的最大保存数量|
     |CHECKPOINT_PERIOD | int | 执行验证的周期 |
     | EMA | dict | [EMA](#ema) 的配置参数 |
-    |GENERATOR | dict | 生成器的优化和[调度](#lr_scheduler)参数|
-    |DISCRIMINATOR| dict | 判别器的优化和调度参数
+    |GENERATOR | dict | 生成器的[优化器](#optimizer)和[学习率调度器](#lr_scheduler)的参数|
+    |DISCRIMINATOR| dict | 判别器的[优化器](#optimizer)和[学习率调度器](#lr_scheduler)的参数
 
 
-#### EMA
+#### EMA  
+
 - 参数  
 
     |名称| 类型 | 描述|  
@@ -74,7 +86,10 @@
     |DECAY_RATE| float | 移动平均的衰减率 |
     |num_updates| int | DECAY_RATE 调整周期, 默认[None] |
 
-### LR_SCHEDULER
+### LR_SCHEDULER   
+
+学习率调度器，详情见[调整学习率](https://pytorch.org/docs/1.10/optim.html#how-to-adjust-learning-rate)
+
 - 参数  
 
     |名称| 类型 | 描述|  
@@ -83,25 +98,44 @@
     | TYPE | str | 调度器的名称 |
     |PARAMS | dict | 调度器的参数 |
 
-- 支持的调度器
-    - LRMultiplierScheduler
-    - WarmupPolynomialDecay
-    - pytorch中的所有的学习率调度器，比如[ExponentialLR, LinearLR, MultiStepLR]
+- 支持的调度器  
+    - 自定义  
+        - LRMultiplierScheduler
+        - WarmupPolynomialDecay
+        - pytorch中的所有的学习率调度器，比如[ExponentialLR, LinearLR, MultiStepLR]  
+    - pytorch  
+
+
 
 ### OPTIMIZER  
+
+优化器，详情见[优化器的使用](https://pytorch.org/docs/1.10/optim.html#how-to-use-an-optimizer)  
+
+
 - 参数  
 
     |名称| 类型 | 描述|  
     |---|---|---|  
     | TYPE | str | 优化器, 比如 Adam |
     |PARAMS | dict | 优化器的参数 |
-    |CLIP_GRADIENTS| dict | 梯度裁剪的参数 |
+    |CLIP_GRADIENTS| dict | 梯度裁剪的参数 |  
+
+- 支持pytroch所有的优化器  
+
+- 支持梯度裁剪  
 
 
---
-## DATALOADER
+---  
+
+<br>  
+
+## `DATALOADER`  
+  
 - 数据相关的参数， 包括数据增强，数据加载与创建
-- NUM_WORKERS 数据处理进程数
+- NUM_WORKERS 数据处理进程数  
+
+
+<br>  
 
 # 运行参数  
 | 名称 | 类型| 描述 |

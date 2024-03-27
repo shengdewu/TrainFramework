@@ -74,7 +74,7 @@
 
     | name | type | description | 
     |--- | --- | ---| 
-    | gamma_limit | Union[float, Tuple[float]] | 色度程度范围， 如果是一个浮点数则取值范围是：[-gamma_limit, gamma_limit], 如果是元组则取值范围就是元组本身 |
+    | gamma_limit | Union[float, Tuple[float]] | 伽马值范围， 如果是一个浮点数则取值范围是：[-gamma_limit, gamma_limit], 如果是元组则取值范围就是元组本身 |
     | p | float | 生效的概率， 取值范围 [0, 1.0] |    
 
 ---  
@@ -117,7 +117,8 @@
 #### `RandomSharpen`  
 
 - 描述:  
-    随机图像质量压缩， 从指定的图像质量值中随机选择一个来压缩图片质量
+
+    随机锐化图像
 
 - parameters: 
 
@@ -133,7 +134,8 @@
 #### `RandomToneCurve`  
 
 - 描述:  
-    通过操纵色调曲线来重新调整图像亮区和暗区之间的关系
+    通过连个正太分布[他们的标准方差相同=scale], 选取两个点操纵色调曲线来重新调整图像亮区和暗区之间的关系  
+
 - parameters:  
 
     | name | type | description |
@@ -153,8 +155,8 @@
 
     | name | type | description | 
     |--- | --- | ---| 
-    |brightness_limit| Union[float, Tuple[float]] | 参见 RandomBrightness|
-    | contrast_limit | Union[float, Tuple[float]] | 参见 RandomContrast |
+    |brightness_limit| Union[float, Tuple[float]] | 参见 [RandomBrightness](#randombrightness)|
+    | contrast_limit | Union[float, Tuple[float]] | 参见 [RandomContrast](#randomcontrast) |
     | brightness_by_max | bool | True： 亮度的调节基础值是图像数据类型的最大值， False： 亮度的调节基础值是图像数据的均值|
     | p | float | 生效的概率， 取值范围 [0, 1.0] |
 
@@ -214,19 +216,19 @@
 
     | name | type | description|
     | --- | --- | --- |   
-    | brightness_limit| Union[float, Tuple[float]] | 同 RandomBrightness |    
+    | brightness_limit| Union[float, Tuple[float]] | 同 [RandomBrightness](#randombrightness) |    
     | brightness_p | float | RandomBrightness 的执行概率 范围[0, 1.0] |
-    | contrast_limit| Union[float, Tuple[float]] | 同 RandomContrast |    
+    | contrast_limit| Union[float, Tuple[float]] | 同 [RandomContrast](#randomcontrast) |    
     | contrast_p | float | RandomContrast 的执行概率 范围[0, 1.0] |
-    | saturation_limit| Union[float, Tuple[float]] | 同 RandomSaturation |    
+    | saturation_limit| Union[float, Tuple[float]] | 同 [RandomSaturation](#randomsaturation) |    
     | saturation_p | float | RandomSaturation 的执行概率 范围[0, 1.0] |            
-    | blur_limit| Union[float, Tuple[float]] | 同 RandomGaussianBlur |    
-    | sigma_limit| Union[float, Tuple[float]] | 同 RandomGaussianBlur |              
-    | blur_p | float | RandomGaussianBlur 的执行概率 范围[0, 1.0] |
-    | gamma_limit| Union[float, Tuple[float]] | 同 RandomGamma |    
+    | blur_limit| Union[float, Tuple[float]] | 同 [RandomGaussianBlur](#randomgaussianblur) |    
+    | sigma_limit| Union[float, Tuple[float]] | 同 [RandomGaussianBlur](#randomgaussianblur) |              
+    | blur_p | float | [RandomGaussianBlur 的执行概率 范围[0, 1.0] |
+    | gamma_limit| Union[float, Tuple[float]] | 同 [RandomGamma](#randomgamma) |    
     | gamma_p | float | RandomGamma 的执行概率 范围[0, 1.0] |    
-    | clahe_limit| Union[float, Tuple[float]] | 同 RandomCLAHE |    
-    | clahe_p | float | RandomCLAHE 的执行概率 范围[0, 1.0] |                       
+    | clahe_limit| Union[float, Tuple[float]] | 同 [RandomCLAHE](#randomclahe) |    
+    | clahe_p | float | RandomCLAHE]的执行概率 范围[0, 1.0] |                       
 
 
 <br>  
@@ -478,7 +480,7 @@ class CustomAug(BasicColorTransform):
         }
 
 ```
-- 导入 通过[import]导入到程序中
+- 导入 通过`import`导入到程序中
 
 - 使用 参见[数据增强的使用](#数据增强的使用)  
 
