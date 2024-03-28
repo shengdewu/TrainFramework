@@ -1017,34 +1017,30 @@ class ToGray(BasicColorTransform):
 class Normalize(BasicColorTransform):
     """
     Args:
-        mean (list of float): mean values for each channel.
-        std  (list of float): std values for each channel.
-        max_pixel_value:
+        mean (tuple): mean values for each channel.
+        std  (tuple): std values for each channel.
     Targets:
         image [np.float]
 
     Image types:
-        uint8, float32
+        uint8 RGB
     """
 
     def __init__(self,
-                 mean=(0.485, 0.456, 0.406),
-                 std=(0.229, 0.224, 0.225),
-                 max_pixel_value=255):
+                 mean: Tuple[float] = (123.675, 116.28, 103.53),  # 来自imagenet图片的均值和方差
+                 std: Tuple[float] = (58.395, 57.12, 57.375)):
         super(Normalize, self).__init__(p=1)
-        self.mean = mean
-        self.std = std
-        self.max_pixel_value = max_pixel_value
+        self.mean = np.array(mean, dtype=np.float32)
+        self.std = np.array(std, dtype=np.float32)
         return
 
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
-        return F.normalize(img, self.mean, self.std, self.max_pixel_value)
+        return F.normalize(img, self.mean, self.std)
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('
         format_string += 'std={}, '.format(self.std)
-        format_string += 'mean={}, '.format(self.mean)
-        format_string += 'max_pixel_value={})'.format(self.max_pixel_value)
+        format_string += 'mean={})'.format(self.mean)
         return format_string
 
 

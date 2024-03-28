@@ -401,21 +401,14 @@ def to_gray(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
 
-def to_tensor(pic: np.ndarray, t_float=torch.float32):
-    if not _is_numpy_image(pic):
-        raise ValueError('pic should be 2/3 dimensional. Got {} dimensions.'.format(pic.ndim))
+def to_tensor(data: np.ndarray):
+    """Convert objects of various python types to :obj:`torch.Tensor`.
+    """
+    if len(data.shape) < 3:
+        data = np.expand_dims(data, -1)
+    data = np.ascontiguousarray(data.transpose(2, 0, 1))
 
-    # handle numpy array
-    if pic.ndim == 2:
-        pic = pic[:, :, None]
-
-    img = torch.from_numpy(pic.transpose((2, 0, 1))).contiguous()
-
-    max_value = MAX_VALUES_BY_DTYPE.get(pic.dtype, None)
-    if max_value is None:
-        raise TypeError('pic should be (uint8, uint16, uint32, float). Got {} dimensions.'.format(pic.dtype))
-
-    return img.to(dtype=t_float).div(max_value)
+    return torch.from_numpy(data)
 
 
 def find_inside_bboxes(bboxes, img_h, img_w):
@@ -450,37 +443,15 @@ def find_inside_pts(pts, img_h, img_w):
     return inside_inds
 
 
-def normalize(img: np.ndarray, mean, std, max_pixel_value):
+def normalize(img: np.ndarray, mean, std):
     assert img.ndim == 3 and img.shape[-1] == 3
     assert img.dtype in [np.dtype("uint8"), np.dtype("uint16"), np.dtype("uint32")]
 
-    mean = np.array(mean, dtype=np.float32)
-    if mean.ndim == 1:
-        mean = np.reshape(mean, (1, 1, -1))
-    std = np.array(std, dtype=np.float32)
-    denominator = np.reciprocal(std, dtype=np.float32)
-    if denominator.ndim == 1:
-        denominator = np.reshape(denominator, (1, 1, -1))
-
-    if np.max(mean) > 1:
-        '''
-        when
-        mean = [125, 125, 125]
-        std = [125, 125, 125]
-        then 
-        the mean and std act directly on image
-        
-        eg 
-        the img is normalized to [-1, 1]
-        '''
-        img = img.astype(np.float32)
-    else:
-        max_value = MAX_VALUES_BY_DTYPE.get(img.dtype)
-        assert abs(max_pixel_value - max_value) < 1e-3, f'max_value: {max_pixel_value} not match type {img.dtype}'
-        img = img.astype(np.float32) / max_pixel_value
-
-    img -= mean
-    img *= denominator
+    mean = np.reshape(mean, (1, -1))
+    stdinv = 1 / np.float64(np.reshape(std, (1, -1)))
+    img = img.astype(np.float32)
+    cv2.subtract(img, mean, img)  # inplace
+    cv2.multiply(img, stdinv, img)  # inplace
     return img
 
 
