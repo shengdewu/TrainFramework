@@ -51,14 +51,19 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 
 - cuda111 [dockerfile](docker/Dockerfile) 支持 cuda 11  
 
-## 依赖  
+- [依赖](docker/requirements.txt)  
 
-- 如果不使用docker，则需要安装[依赖](docker/requirements.txt)  
  <br>  
 
-## 编译与安装[docker]
+## 编译与安装  
 
-### 1. 编译训练引擎  
+<br>
+
+## `Docker`  
+
+<br>
+
+###  编译训练引擎  
 
 ```python
 git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
@@ -67,12 +72,12 @@ python3 setup.py bdist_wheel
 
 ```
 
-### 2. 编译基础docker环境 [Dockerfile](docker/Dockerfile)
+### 编译基础docker环境 [Dockerfile](docker/Dockerfile)
 ```python
 docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1.10
 ```
 
-### 3. 编译训练docker环境  
+### 编译训练docker环境  
 
 - 根据[简单的使用](#简单的使用)实现训练模块  
 
@@ -94,6 +99,29 @@ docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1
     ```none
     docker run --gpus='"device=0"' --shm-size=20g -v /mnt:/mnt -t train --config-file /mnt/config/train.py --num-gpus 1
     ```
+
+## `Ubuntu`  
+
+###  编译训练引擎  
+
+```python
+git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
+
+python3 setup.py bdist_wheel
+
+```  
+
+### 安装[依赖](docker/requirements.txt) 
+
+```none
+pip3 install -r docker/requirements.txt
+```    
+
+### 安装训练引擎  
+
+```none
+pip3 install engine_frame-xx.whl
+```
 
 <br>  
 
