@@ -56,12 +56,9 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
  <br>  
 
 ## 编译与安装  
-
-<br>
+<br>  
 
 ## `Docker`  
-
-<br>
 
 ###  编译训练引擎  
 
