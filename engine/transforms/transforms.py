@@ -63,6 +63,10 @@ class Pad32:
             if (pad_h, pad_w) == (height, width):
                 continue
 
+            pad_value = 0
+            if results.get('pad_value', None) is not None:
+                pad_value = results['pad_value'].get(key, 0)
+
             h_offset = pad_h - height
             w_offset = pad_w - width
             h_pad_top = h_offset // 2
@@ -71,7 +75,7 @@ class Pad32:
             w_pad_right = w_offset - w_pad_left
             img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
                                      left=w_pad_left, right=w_pad_right,
-                                     borderType=cv2.BORDER_CONSTANT, value=0)
+                                     borderType=cv2.BORDER_CONSTANT, value=pad_value)
             results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
 
             results[key] = img
@@ -84,7 +88,6 @@ class Pad32:
         :param results:  results['box_fileds'] [x1, y1, x2, y2]
         :return:
         """
-        height, width = results['img_shape']
         for key in results.get('box_fileds', []):
             bboxes = results[key]
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
@@ -97,7 +100,6 @@ class Pad32:
         :param results:  results['pts_fields'] [x, y]
         :return: 
         """""
-        height, width = results['img_shape']
         for key in results.get('pts_fields', []):
             pts = results[key]
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
@@ -175,6 +177,9 @@ class Resize:
         for key in results.get('img_fields', []):
             img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=interpolation)
             if self.is_padding:
+                pad_value = 0
+                if results.get('pad_value', None) is not None:
+                    pad_value = results['pad_value'].get(key, 0)
                 height, width = img.shape[0], img.shape[1]
                 if min(height, width) < self.target_size:
                     h_offset = self.target_size - height
@@ -185,7 +190,7 @@ class Resize:
                     w_pad_right = w_offset - w_pad_left
                     img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
                                              left=w_pad_left, right=w_pad_right,
-                                             borderType=cv2.BORDER_CONSTANT, value=0)
+                                             borderType=cv2.BORDER_CONSTANT, value=pad_value)
                     results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
 
             results[key] = img
@@ -360,14 +365,17 @@ class RandomAffine:
         width = int(width * self.border_ratio)
         height = int(height * self.border_ratio)
         for key in results.get('img_fields', []):
+            pad_value = self.border_val
+            if results.get('pad_value', None) is not None:
+                pad_value = results['pad_value'].get(key, self.border_val)
             results[key] = cv2.warpPerspective(
                 results[key],
                 affine_matrix,
                 dsize=(width, height),
-                borderValue=self.border_val)
+                borderValue=pad_value)
         results['img_shape'] = (height, width)
 
-    def _affine_box(self, bboxes, affine_matrix, scaling_ratio, width, height):
+    def _affine_box(self, bboxes, affine_matrix, width, height):
         """
         bboxes = [ N * 4]
         """
