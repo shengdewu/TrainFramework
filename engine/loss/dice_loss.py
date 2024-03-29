@@ -103,24 +103,6 @@ class _DiceLossBase(torch.nn.Module):
             raise ValueError(f"Reduction mode is not supported, expected options are ['mean', 'sum', 'none']" f", found {self.reduction}")
         return loss
 
-    def to_one_hot(self, target: torch.Tensor, num_classes: int):
-        """
-        Target label to one_hot tensor. labels and ignore_index must be consecutive numbers.
-        :param target: Class labels long tensor, with shape [N, H, W]
-        :param num_classes: num of classes in datasets excluding ignore label, this is the output channels of the one hot
-            result.
-        :return: one hot tensor with shape [N, num_classes, H, W]
-        """
-        num_classes = num_classes if self.ignore_index is None else num_classes + 1
-
-        one_hot = F.one_hot(target, num_classes).permute((0, 3, 1, 2))
-
-        if self.ignore_index is not None:
-            # remove ignore_index channel
-            one_hot = torch.cat([one_hot[:, :self.ignore_index], one_hot[:, self.ignore_index + 1:]], dim=1)
-
-        return one_hot
-
     def forward(self, predict, target):
         if self.apply_softmax:
             predict = torch.softmax(predict, dim=1)
@@ -131,13 +113,18 @@ class _DiceLossBase(torch.nn.Module):
             if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
                 labels_one_hot = target.unsqueeze(1)
             else:
-                labels_one_hot = self.to_one_hot(target, num_classes=predict.shape[1])
+                labels_one_hot = F.one_hot(
+                    torch.clamp(target.long(), 0, predict.shape[1] - 1),
+                    num_classes=predict.shape[1])
+
         elif target.dim() == 4 and target.shape[1] == 1:
             target = target[:, 0, :, :]
             if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
                 labels_one_hot = target.unsqueeze(1)
             else:
-                labels_one_hot = self.to_one_hot(target, num_classes=predict.shape[1])
+                labels_one_hot = F.one_hot(
+                    torch.clamp(target.long(), 0, predict.shape[1] - 1),
+                    num_classes=predict.shape[1])
         else:
             raise AssertionError(
                 f"Mismatch of target shape: {target.size()} and prediction shape: {predict.size()},"
