@@ -394,6 +394,7 @@ transformers = TransformCompose(cfg)
             img_fields=['img', 'mask'],
             pts_fields=['pts'],    
             bbox_fields=['bbox'], 
+            pad_value=dict(img=0, mask=255, pts=0, bbox=0),
             img=np.ndarray, 
             mask=np.ndarray,
             pts=np.ndarray,  
@@ -410,7 +411,8 @@ transformers = TransformCompose(cfg)
     |color_fields | List | yes | [像素增强](#像素增强)中必须字段<br> 这个字段里面的都会执行 [像素增强](#像素增强) | 
     |img_fields | List | no | [空间增强](#空间增强)中需要执行<big>图片</big>增强的字段， 如果指定了空间增强，则这个字段必须|
     |pts_fields| List | no | [空间增强](#空间增强)中需要执行<big>点位</big>增强的字段， 如果指定了空间增强，则这个字段必须 |
-    |bbox_fields | List | no | [空间增强](#空间增强)中需要执行<big>框</big>增强的字段， 如果指定了空间增强，则这个字段必须 |
+    |bbox_fields | List | no | [空间增强](#空间增强)中需要执行<big>框</big>增强的字段， 如果指定了空间增强，则这个字段必须 |  
+    |pad_value | Dict | no | 对应字段填充值，<br>比如[Resize](#resize) 如果指定了则使用指定的值，否则使用内部指定值 |  
     |pad_offset | List | no | 经过[空间增强](#空间增强)后表示数据的填充大小|
     |scale| Tuple | no | 经过[空间增强](#空间增强)后表示数据相对于原始数据的在w和h上的缩放尺度|
     |img_shape | Tuple | no | 增强后的图片长宽 [height, width] |
