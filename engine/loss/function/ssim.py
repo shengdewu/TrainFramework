@@ -116,7 +116,7 @@ class SSIM(torch.nn.Module):
 
         """
         if img1.shape[2] != img2.shape[2]:
-                img1 = img1.transpose(2, 3)
+            img1 = img1.transpose(2, 3)
 
         if img1.shape != img2.shape:
             raise RuntimeError('Input images must have the same shape (%s vs. %s).', img1.shape, img2.shape)

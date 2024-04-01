@@ -72,14 +72,14 @@ class BaseModel(abc.ABC):
         self.max_iter = cfg.SOLVER.MAX_ITER
 
         self.g_model = self.create_model(params=cfg.TRAINER.MODEL.get('GENERATOR', dict())).to(self.device)
-        self.g_optimizer = self.create_optimizer(cfg.SOLVER.GENERATOR.OPTIMIZER, self.g_model.parameters())
+        self.g_optimizer = self.create_optimizer(cfg.SOLVER.GENERATOR.OPTIMIZER, cfg.SOLVER.GENERATOR.CLIP_GRADIENTS, self.g_model.parameters())
         self.g_scheduler = self.create_scheduler(cfg.SOLVER.GENERATOR.LR_SCHEDULER, self.g_optimizer)
         self.create_ema(cfg.SOLVER.get('EMA', dict()))
 
         logging.getLogger(self.default_log_name).info('create model {} with {}'.format(self.__class__.__name__, self.g_model))
         return
 
-    def create_optimizer(self, optimizer_cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
+    def create_optimizer(self, optimizer_cfg, clip_gradients_cfg, parameters: Iterator[torch.nn.Parameter]) -> torch.optim.Optimizer:
         op_type = optimizer_cfg.TYPE
         params = dict()
         for key, param in optimizer_cfg.PARAMS.items():
@@ -87,7 +87,7 @@ class BaseModel(abc.ABC):
 
         cls = import_optimizer(op_type)
 
-        return build_optimizer_with_gradient_clipping(optimizer_cfg.CLIP_GRADIENTS, cls)(parameters, **params)
+        return build_optimizer_with_gradient_clipping(clip_gradients_cfg, cls)(parameters, **params)
 
     def create_scheduler(self, scheduler_cfg, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
 

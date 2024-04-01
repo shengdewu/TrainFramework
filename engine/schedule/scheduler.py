@@ -20,6 +20,13 @@ import types
 from importlib import import_module
 
 
+BASE_KEY = '_base_'
+LR_SCHEDULER = 'LR_SCHEDULER'
+OPTIMIZER = 'OPTIMIZER'
+TYPE = 'TYPE'
+PARAMS = 'PARAMS'
+
+
 def upper(k):
     new_k = k.upper()
     if new_k.lower() != k:
@@ -189,7 +196,31 @@ class BaseScheduler:
             uppre_config = CfgNode(init_dict=uppre_config)
         return uppre_config
 
-    def py2cfg(self, file_name):
+    def merge_base(self, base_cfg: dict, cfg: dict):
+        for key, value in base_cfg.items():
+            if key.lower() == LR_SCHEDULER.lower() or key.lower() == OPTIMIZER.lower():
+                if key not in cfg.keys():
+                    cfg[key] = value
+                else:
+                    if value[TYPE.lower()] != cfg[key][TYPE.lower()]:
+                        print(f'use the cfg to replace the value of base in {key}')
+                        continue
+                    else:
+                        if isinstance(value, dict):
+                            self.merge_base(value, cfg[key])
+                        else:
+                            print(f'use the cfg to replace the value of base in {key}')
+            else:
+                if key not in cfg.keys():
+                    cfg[key] = value
+                else:
+                    if isinstance(value, dict):
+                        self.merge_base(value, cfg[key])
+                    else:
+                        print(f'use the cfg to replace the value of base in {key}')
+        return
+
+    def py2cfg(self, file_name, to_cfg=True):
         file_name = os.path.abspath((os.path.expanduser(file_name)))
         self.check_file_exist(file_name)
         cfg = get_cfg()
@@ -207,13 +238,26 @@ class BaseScheduler:
                 name: value
                 for name, value in mod.__dict__.items()
                 if not name.startswith('__')
-                and not isinstance(value, types.ModuleType)
-                and not isinstance(value, types.FunctionType)
-                and name.lower() in keys
+                   and not isinstance(value, types.ModuleType)
+                   and not isinstance(value, types.FunctionType)
+                   and name.lower() in keys
             }
+
+            base_dict = dict()
+            for name, value in mod.__dict__.items():
+                if name.lower() != BASE_KEY:
+                    continue
+                base_filename = value if isinstance(value, list) else [value]
+                for base in base_filename:
+                    base_dict.update(self.py2cfg(f'{os.path.dirname(file_name)}/{base}', to_cfg=False))
+
             del sys.modules[temp_module_name]
             temp_config_file.close()
-        return self.dict2cfg(cfg_dict)
+
+        if len(base_dict) > 0:
+            self.merge_base(base_dict, cfg_dict)
+
+        return self.dict2cfg(cfg_dict) if to_cfg else cfg_dict
 
     def setup(self, args):
         cfg = get_cfg()

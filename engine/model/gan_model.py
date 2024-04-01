@@ -33,12 +33,15 @@ class BaseGanModel(BaseModel, abc.ABC):
                 assert isinstance(d_cfg, dict)
                 assert len(d_cfg) == 2
                 d_name = d_cfg['NAME']
-                self.d_optimizer[d_name] = self.create_optimizer(CfgNode(init_dict=d_cfg['PARAMS']['OPTIMIZER']), self.d_model[d_name].parameters())
+                self.d_optimizer[d_name] = self.create_optimizer(CfgNode(init_dict=d_cfg['PARAMS']['OPTIMIZER']),
+                                                                 CfgNode(init_dict=d_cfg['PARAMS']['CLIP_GRADIENTS']),
+                                                                 self.d_model[d_name].parameters())
                 self.d_scheduler[d_name] = self.create_scheduler(CfgNode(init_dict=d_cfg['PARAMS']['LR_SCHEDULER']), self.d_optimizer[d_name])
 
         else:
             assert isinstance(cfg.SOLVER.DISCRIMINATOR, dict)
             self.d_optimizer[self.DEFAULT_DMODEL_NAME] = self.create_optimizer(CfgNode(init_dict=cfg.SOLVER.DISCRIMINATOR['OPTIMIZER']),
+                                                                               CfgNode(init_dict=cfg.SOLVER.DISCRIMINATOR['CLIP_GRADIENTS']),
                                                                                self.d_model[self.DEFAULT_DMODEL_NAME].parameters())
             self.d_scheduler[self.DEFAULT_DMODEL_NAME] = self.create_scheduler(CfgNode(init_dict=cfg.SOLVER.DISCRIMINATOR['LR_SCHEDULER']),
                                                                                self.d_optimizer[self.DEFAULT_DMODEL_NAME])

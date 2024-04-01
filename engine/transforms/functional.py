@@ -447,11 +447,11 @@ def normalize(img: np.ndarray, mean, std):
     assert img.ndim == 3 and img.shape[-1] == 3
     assert img.dtype in [np.dtype("uint8"), np.dtype("uint16"), np.dtype("uint32")]
 
-    mean = np.reshape(mean, (1, -1))
-    stdinv = 1 / np.float64(np.reshape(std, (1, -1)))
+    mean = np.reshape(mean, (1, 1, -1))
+    stdinv = 1. / np.reshape(std, (1, 1, -1))
     img = img.astype(np.float32)
-    cv2.subtract(img, mean, img)  # inplace
-    cv2.multiply(img, stdinv, img)  # inplace
+    img -= mean
+    img *= stdinv
     return img
 
 

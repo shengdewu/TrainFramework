@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from .function.ssim import SSIM
 from .build import LOSS_ARCH_REGISTRY
 
@@ -9,24 +10,69 @@ __all__ = [
 
 @LOSS_ARCH_REGISTRY.register()
 class SSIMLoss(torch.nn.Module):
-    def __init__(self, lambda_weight=1.):
+    def __init__(self, lambda_weight=1.,
+                 apply_sigmoid: bool = True,
+                 ignore_index: int = None):
         super(SSIMLoss, self).__init__()
         self.lambda_weight = lambda_weight
+        self.apply_sigmoid = apply_sigmoid
+        self.ignore_index = ignore_index
         self.ssim_op = SSIM()
         return
 
-    def forward(self, x, target):
+    def forward(self, predict, target):
         """
-        :param x: b, c, h, w
-        :param target: b, C, h, w
+        :param predict: b, c, h, w
+        :param target: b, c, h, w, or b, h, w
         :return:
         """
-        assert x.shape == target.shape
-        loss = 1.0 - self.ssim_op(x, target)
+        if self.apply_sigmoid:
+            predict = F.sigmoid(predict)
+        else:
+            predict = torch.argmax(predict, dim=1)
+
+        # target to one hot format
+        if target.size() == predict.size():
+            labels_one_hot = target
+        elif target.dim() == 3:  # if target tensor is in class indexes format.
+            if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
+                labels_one_hot = target.unsqueeze(1)
+            else:
+                labels_one_hot = F.one_hot(
+                    torch.clamp(target.long(), 0, predict.shape[1] - 1),
+                    num_classes=predict.shape[1])
+        elif target.dim() == 4 and target.shape[1] == 1:
+            target = target[:, 0, :, :]
+            if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
+                labels_one_hot = target.unsqueeze(1)
+            else:
+                labels_one_hot = F.one_hot(
+                    torch.clamp(target.long(), 0, predict.shape[1] - 1),
+                    num_classes=predict.shape[1])
+        else:
+            raise AssertionError(
+                f"Mismatch of target shape: {target.size()} and prediction shape: {predict.size()},"
+                f" target must be [NxWxH] tensor for to_one_hot conversion"
+                f" or to have the same num of channels like prediction tensor"
+            )
+
+        if self.ignore_index is not None:
+            if target.size() != predict.size():
+                # target N H W
+                valid_mask = target.ne(self.ignore_index).unsqueeze(1).expand_as(predict)
+            else:
+                # target H 1 H W
+                valid_mask = target.ne(self.ignore_index).expand_as(predict)
+            # predict *= valid_mask 不要使用， 因为 one of the variables needed for gradient computation has been modified by an inplace operation
+            predict = predict * valid_mask
+            labels_one_hot = labels_one_hot * valid_mask
+
+        loss = 1.0 - self.ssim_op(predict, labels_one_hot.type_as(predict))
         return self.lambda_weight * loss
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('
-        format_string += 'lambda_weight: {})'.format(self.lambda_weight)
+        format_string += ' ,lambda_weight: {}, '.format(self.lambda_weight)
+        format_string += ' ,apply_sigmoid: {}, '.format(self.apply_sigmoid)
+        format_string += ' ,ignore_index: {})'.format(self.ignore_index)
         return format_string
-

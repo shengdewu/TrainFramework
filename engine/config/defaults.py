@@ -41,11 +41,11 @@ _C.SOLVER.GENERATOR.OPTIMIZER.TYPE = 'Adam'
 _C.SOLVER.GENERATOR.OPTIMIZER.PARAMS = CfgNode(new_allowed=True)
 _C.SOLVER.GENERATOR.OPTIMIZER.PARAMS.LR = 0.0001
 _C.SOLVER.GENERATOR.OPTIMIZER.PARAMS.BETAS = (0.9, 0.999)
-_C.SOLVER.GENERATOR.OPTIMIZER.CLIP_GRADIENTS = CfgNode({"ENABLED": False})
-_C.SOLVER.GENERATOR.OPTIMIZER.CLIP_GRADIENTS.CLIP_TYPE = "value"
-_C.SOLVER.GENERATOR.OPTIMIZER.CLIP_GRADIENTS.CLIP_VALUE = 1.0
-_C.SOLVER.GENERATOR.OPTIMIZER.CLIP_GRADIENTS.NORM_TYPE = 2.0
-_C.SOLVER.GENERATOR.OPTIMIZER.CLIP_GRADIENTS.GROUP = False
+_C.SOLVER.GENERATOR.CLIP_GRADIENTS = CfgNode({"ENABLED": False})
+_C.SOLVER.GENERATOR.CLIP_GRADIENTS.CLIP_TYPE = "value"
+_C.SOLVER.GENERATOR.CLIP_GRADIENTS.CLIP_VALUE = 1.0
+_C.SOLVER.GENERATOR.CLIP_GRADIENTS.NORM_TYPE = 2.0
+_C.SOLVER.GENERATOR.CLIP_GRADIENTS.GROUP = False
 
 _C.SOLVER.DISCRIMINATOR = CfgNode(new_allowed=True)
 
@@ -62,8 +62,8 @@ GENERATOR一样
     eg:
     
     solver['discriminator'] = [
-        dict(name='gen1', params=dict(lr_scheduler=lr_scheduler, optimizer=optimizer)),
-        dict(name='gen2', params=dict(lr_scheduler=lr_scheduler, optimizer=optimizer))]
+        dict(name='gen1', params=dict(lr_scheduler=lr_scheduler, optimizer=optimizer, clip_gradients=clip_gradients)),
+        dict(name='gen2', params=dict(lr_scheduler=lr_scheduler, optimizer=optimizer, clip_gradients=clip_gradients))]
             
 必须和 _C.TRAINER.MODEL.DISCRIMINATOR 保持一致
 """

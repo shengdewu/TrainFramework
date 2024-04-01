@@ -1,19 +1,16 @@
-from engine.loss.build import LOSS_ARCH_REGISTRY
 from typing import Union, Tuple
-from enum import Enum
 import torch
 import torch.nn.functional as F
+
+from engine.loss.build import LOSS_ARCH_REGISTRY
+
+from .util import LossReduction
+
 
 __all__ = [
     'BinaryDiceLoss',
     'GeneralizedDiceLoss'
 ]
-
-
-class _LossReduction(Enum):
-    MEAN = "mean"
-    SUM = "sum"
-    NONE = "none"
 
 
 class _DiceLossBase(torch.nn.Module):
@@ -31,11 +28,12 @@ class _DiceLossBase(torch.nn.Module):
             reduce_over_batches: bool = False,
             generalized_metric: bool = False,
             weight: Union[float, torch.Tensor] = 1.0,
-            reduction: Union[_LossReduction, str] = "mean",
+            reduction: str = "mean",
             lambda_weight: float = 1.
     ):
         """
         :param apply_softmax: Whether to apply softmax to the predictions.
+        :param ignore_index (int | None): The label index to be ignored. Default: None.
         :param smooth: laplace smoothing, also known as additive smoothing. The larger smooth value is, closer the metric
             coefficient is to 1, which can be used as a regularization effect.
             As mentioned in: https://github.com/pytorch/pytorch/issues/1249#issuecomment-337999895
@@ -95,11 +93,11 @@ class _DiceLossBase(torch.nn.Module):
         return loss
 
     def apply_reduce(self, loss: torch.Tensor):
-        if self.reduction == _LossReduction.MEAN.value:
+        if self.reduction == LossReduction.MEAN.value:
             loss = loss.mean()
-        elif self.reduction == _LossReduction.SUM.value:
+        elif self.reduction == LossReduction.SUM.value:
             loss = loss.sum()
-        elif not _LossReduction.NONE.value:
+        elif not LossReduction.NONE.value:
             raise ValueError(f"Reduction mode is not supported, expected options are ['mean', 'sum', 'none']" f", found {self.reduction}")
         return loss
 
@@ -141,7 +139,12 @@ class _DiceLossBase(torch.nn.Module):
         # exclude ignore labels from numerator and denominator, false positive predicted on ignore samples
         # are not included in the total calculation.
         if self.ignore_index is not None:
-            valid_mask = target.ne(self.ignore_index).unsqueeze(1).expand_as(denominator)
+            if target.shape() != denominator.shape():
+                # target N H W
+                valid_mask = target.ne(self.ignore_index).unsqueeze(1).expand_as(denominator)
+            else:
+                # target H 1 H W
+                valid_mask = target.ne(self.ignore_index).expand_as(denominator)
             numerator *= valid_mask
             denominator *= valid_mask
 
@@ -161,6 +164,16 @@ class _DiceLossBase(torch.nn.Module):
         if self.weight is not None:
             losses *= self.weight
         return self.apply_reduce(losses) * self.lambda_weight
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + '('
+        format_string += ' ,smooth: {}, '.format(self.smooth)
+        format_string += ' ,eps: {}, '.format(self.eps)
+        format_string += ' ,reduction: {}, '.format(self.reduction)
+        format_string += ' ,lambda_weight: {}, '.format(self.lambda_weight)
+        format_string += ' ,apply_softmax: {}, '.format(self.apply_sigmoid)
+        format_string += ' ,ignore_index: {})'.format(self.ignore_index)
+        return format_string
 
 
 @LOSS_ARCH_REGISTRY.register()
@@ -208,7 +221,7 @@ class GeneralizedDiceLoss(_DiceLossBase):
             smooth: float = 0.0,
             eps: float = 1e-17,
             reduce_over_batches: bool = False,
-            reduction: Union[_LossReduction, str] = "mean",
+            reduction: str = "mean",
             weight: Union[float, torch.Tensor] = None,
             lambda_weight: float = 1.0
     ):

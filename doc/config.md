@@ -117,12 +117,26 @@
     |名称| 类型 | 描述|  
     |---|---|---|  
     | TYPE | str | 优化器, 比如 Adam |
-    |PARAMS | dict | 优化器的参数 |
-    |CLIP_GRADIENTS| dict | 梯度裁剪的参数 |  
+    |PARAMS | dict | 优化器的参数 | 
 
 - 支持pytroch所有的优化器  
 
-- 支持梯度裁剪  
+### CLIP_GRADIENTS  
+
+梯度裁剪：  
+
+当神经网络深度逐渐增加，网络参数量增多的时候，反向传播过程中链式法则里的梯度连乘项数便会增多，更易引起梯度消失和梯度爆炸。对于梯度爆炸问题，解决方法之一便是进行梯度剪裁，即设置一个梯度大小的上限
+
+- 支持：  
+
+    - [torch.nn.utils.clip_grad_norm_](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html)
+    - [torch.nn.utils.clip_grad_value_](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_value_.html)
+
+- 参数  
+
+    |名称| 类型 | 描述|  
+    |---|---|---|  
+    | CLIP_TYPE | str | 类型 value, 取值只能是 ["value"， "norm"] |
 
 
 ---  
