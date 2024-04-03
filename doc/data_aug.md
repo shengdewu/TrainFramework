@@ -257,7 +257,8 @@
     | border_ratio | float | 仿射变换时图像的放大比率|
     | min_bbox_size| float | 变换之后的 bbox 的长或者框如果小于这个值将被移除
     | min_area_ratio| float| 原始的bbox与变换之后的 bbox 之间的面积比阈值 如果小于这个值将被移除|
-    |max_aspect_ratio| float | 变换后的box的长和宽之间的比值 max(h/w, w/h) 大于这个阈值将被移除|
+    |max_aspect_ratio| float | 变换后的box的长和宽之间的比值 max(h/w, w/h) 大于这个阈值将被移除|  
+    |interpolation| str | 插值方式 |
 
 ---  
 <br>  
@@ -421,6 +422,7 @@ transformers = TransformCompose(cfg)
     | mask | np.ndarry | no | 同 img *增强后的内容会放在这个字段覆盖原来的内容*|
     | pts | np.ndarry | no | 表示 pts_fields 需要的字段 *增强后的内容会放在这个字段覆盖原来的内容*|
     | bbox | np.ndarry | no | 表示 bbox_fields 需要的字段 *增强后的内容会放在这个字段覆盖原来的内容*|
+    |interpolation|Dict| no |对应字段的差值方式，<br>比如[Resize](#resize) 如果指定了则使用指定的值，否则使用内部指定值 |
 
 - 根据上述说明填好需要的内容后调用方法  
 

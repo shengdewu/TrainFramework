@@ -160,7 +160,15 @@ class Resize:
         results['img_shape'] = (new_h, new_w)
         results['scale'] = (scale_w, scale_h)
         results['keep_ratio'] = self.keep_ratio
-        results['interpolation'] = random.choice(self.interpolation)
+        interpolation = random.choice(self.interpolation)
+        if results.get('interpolation', None) is None:
+            results['interpolation'] = dict()
+            for key in results.get('img_fields', []):
+                results['interpolation'][key] = interpolation
+        else:
+            assert isinstance(results['interpolation'], dict)
+            for key in results.get('img_fields', []):
+                results['interpolation'][key] = results['interpolation'].get(key, interpolation)
         return results
 
     def __call__(self, results):
@@ -173,8 +181,8 @@ class Resize:
 
     def _resize_img(self, results):
         new_img_shape = results['img_shape']
-        interpolation = F.INTER_CV_TYPE[results['interpolation']]
         for key in results.get('img_fields', []):
+            interpolation = F.INTER_CV_TYPE[results['interpolation'][key]]
             img = cv2.resize(results[key], dsize=(results['img_shape'][1], results['img_shape'][0]), interpolation=interpolation)
             if self.is_padding:
                 pad_value = 0
@@ -277,6 +285,7 @@ class RandomAffine:
             are allowed to cross the border of images. Therefore, we don't
             need to clip the gt bboxes in these cases. Defaults to True.
         border_ratio rotate
+        interpolation
     """
 
     def __init__(self,
@@ -292,6 +301,7 @@ class RandomAffine:
                  min_area_ratio=2.,
                  max_aspect_ratio=20,
                  border_ratio=1.2,
+                 interpolation='INTER_LINEAR',
                  ):
         assert 0 <= max_translate_ratio <= 1
 
@@ -316,6 +326,7 @@ class RandomAffine:
         self.scaling_ratio_range = scaling_ratio_range
         self.max_shear_degree = max_shear_degree
         self.border_ratio = border_ratio if border_ratio > 1 else 1
+        self.interpolation = interpolation
         return
 
     def __call__(self, results):
@@ -368,9 +379,15 @@ class RandomAffine:
             pad_value = self.border_val
             if results.get('pad_value', None) is not None:
                 pad_value = results['pad_value'].get(key, self.border_val)
+
+            interpolation = self.interpolation
+            if results.get('interpolation', None) is not None:
+                interpolation = results['interpolation'].get(key, interpolation)
+
             results[key] = cv2.warpPerspective(
                 results[key],
                 affine_matrix,
+                flags=F.INTER_CV_TYPE[interpolation],
                 dsize=(width, height),
                 borderValue=pad_value)
         results['img_shape'] = (height, width)
