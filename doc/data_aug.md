@@ -199,9 +199,8 @@
 
     | name | type | description|
     | --- | --- | --- |   
-    | mean | Union[float, Tuple[float]] | 每个通道需要被减的均值，如果是float则所有的通道共享同一个均值|  
-    | std | Union[float, Tuple[float]] | 每个通道需要被除的方差，如果是float则所有的通道共享同一个方差| 
-    | max_pixel_value | float | 图像对应的数据类型的最大值 |
+    | mean | Union[float, Tuple[float]] | 每个通道需要被减的均值，如果是float则所有的通道共享同一个均值<br>默认值(123.675, 116.28, 103.53)|  
+    | std | Union[float, Tuple[float]] | 每个通道需要被除的方差，如果是float则所有的通道共享同一个方差<br>默认值(58.395, 57.12, 57.375)| 
 
 ---  
 <br>  

@@ -1045,7 +1045,7 @@ class Normalize(BasicColorTransform):
         mean (tuple): mean values for each channel.
         std  (tuple): std values for each channel.
     Targets:
-        image [np.float]
+        image [np.int]
 
     Image types:
         uint8 RGB
