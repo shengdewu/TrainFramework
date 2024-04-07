@@ -113,7 +113,7 @@ class _DiceLossBase(torch.nn.Module):
             else:
                 labels_one_hot = F.one_hot(
                     torch.clamp(target.long(), 0, predict.shape[1] - 1),
-                    num_classes=predict.shape[1])
+                    num_classes=predict.shape[1]).permute(0, 3, 1, 2)
 
         elif target.dim() == 4 and target.shape[1] == 1:
             target = target[:, 0, :, :]
@@ -122,7 +122,7 @@ class _DiceLossBase(torch.nn.Module):
             else:
                 labels_one_hot = F.one_hot(
                     torch.clamp(target.long(), 0, predict.shape[1] - 1),
-                    num_classes=predict.shape[1])
+                    num_classes=predict.shape[1]).permute(0, 3, 1, 2)
         else:
             raise AssertionError(
                 f"Mismatch of target shape: {target.size()} and prediction shape: {predict.size()},"
@@ -139,7 +139,7 @@ class _DiceLossBase(torch.nn.Module):
         # exclude ignore labels from numerator and denominator, false positive predicted on ignore samples
         # are not included in the total calculation.
         if self.ignore_index is not None:
-            if target.shape() != denominator.shape():
+            if target.shape != denominator.shape:
                 # target N H W
                 valid_mask = target.ne(self.ignore_index).unsqueeze(1).expand_as(denominator)
             else:

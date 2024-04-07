@@ -29,7 +29,7 @@ class SSIMLoss(torch.nn.Module):
         if self.apply_sigmoid:
             predict = F.sigmoid(predict)
         else:
-            predict = torch.argmax(predict, dim=1)
+            predict = torch.softmax(predict, dim=1)
 
         # target to one hot format
         if target.size() == predict.size():
@@ -40,7 +40,7 @@ class SSIMLoss(torch.nn.Module):
             else:
                 labels_one_hot = F.one_hot(
                     torch.clamp(target.long(), 0, predict.shape[1] - 1),
-                    num_classes=predict.shape[1])
+                    num_classes=predict.shape[1]).permute(0, 3, 1, 2)
         elif target.dim() == 4 and target.shape[1] == 1:
             target = target[:, 0, :, :]
             if predict.size(1) == 1 and self.ignore_index is None:  # if one class prediction task
@@ -48,7 +48,7 @@ class SSIMLoss(torch.nn.Module):
             else:
                 labels_one_hot = F.one_hot(
                     torch.clamp(target.long(), 0, predict.shape[1] - 1),
-                    num_classes=predict.shape[1])
+                    num_classes=predict.shape[1]).permute(0, 3, 1, 2)
         else:
             raise AssertionError(
                 f"Mismatch of target shape: {target.size()} and prediction shape: {predict.size()},"
