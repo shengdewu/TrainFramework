@@ -53,9 +53,12 @@ class BaseTrainer:
         self.model.enable_train()
         self.model.enable_distribute(cfg)
 
-        model_name = self.model.g_model.__class__.__name__
-        if isinstance(self.model.g_model, (torch.nn.parallel.DistributedDataParallel, torch.nn.parallel.DataParallel)):
-            model_name = self.model.g_model.module.__class__.__name__
+        if hasattr(self.model.g_model, 'model_name'):
+            model_name = self.model.g_model.model_name
+        else:
+            model_name = self.model.g_model.__class__.__name__
+            if isinstance(self.model.g_model, (torch.nn.parallel.DistributedDataParallel, torch.nn.parallel.DataParallel)):
+                model_name = self.model.g_model.module.__class__.__name__
 
         self.checkpoint = engine_checkpoint_manager.CheckPointerManager(max_iter=cfg.SOLVER.MAX_ITER,
                                                                         save_dir=cfg.OUTPUT_DIR,
