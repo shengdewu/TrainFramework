@@ -167,12 +167,12 @@ class BaseTrainer:
         for epoch in range(self.start_iter, self.max_iter):
             if self.enable_epoch_method:
                 for iteration, data in enumerate(self.train_data_loader):
-                    loss_dict = self.model(data, epoch=epoch, data_epoch=iteration, accumulation_epoch=self.gradient_accumulation_batch)
+                    step_info = self.model(data, epoch=epoch, data_epoch=iteration, accumulation_epoch=self.gradient_accumulation_batch)
 
                 self.checkpoint.save(self.model, epoch)
             else:
                 data = next(self.train_data_loader)
-                loss_dict = self.model(data, epoch=epoch, data_epoch=epoch, accumulation_epoch=self.gradient_accumulation_batch)
+                step_info = self.model(data, epoch=epoch, data_epoch=epoch, accumulation_epoch=self.gradient_accumulation_batch)
 
                 if self.gradient_accumulation_batch < 1:
                     self.checkpoint.save(self.model, epoch)
@@ -181,7 +181,7 @@ class BaseTrainer:
                         self.checkpoint.save(self.model, epoch)
 
             if epoch % self.checkpoint.check_period == 0:
-                logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, loss_dict))
+                logging.getLogger(self.default_log_name).info('trainer run step {} {}'.format(epoch, step_info))
 
             self.iterate_after(epoch)
 

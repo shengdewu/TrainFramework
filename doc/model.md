@@ -16,20 +16,23 @@
             - cfg [配置](config.md)
 
     - def run_step(self, data, *, epoch=None, **kwargs)
-        - 训练函数， 在这个里面要调用网络生成结果, 然后计算损失函数， 返回损失函数
+        - 训练函数， 在这个里面要调用网络生成结果, 然后计算损失函数， 返回损失函数,和其他信息
         - params
             - data 数据， 用户自定义的数据处理，通过[数据增强](./data_aug.md) 的输出结果
             - epoch 当前的迭代次数
             - kwargs 用户自定义参数
+        - 返回值  
+            - 必须是 dict， 其中必须有 loss
+            - dict(loss=loss)
         - 示例
             ```python
-               def run_step(self, data, *, epoch=None, **kwargs):
-                sample = data['input'].to(self.device)
-                label = data['gt'].to(self.device)
-
-                logits = self.g_model(sample)
-                total_loss = self.pixel_loss(logits, label)
-                return total_loss
+               def run_step(self, data, *, epoch=None, **kwargs) -> Dict[str, Any]:
+                    sample = data['input'].to(self.device)
+                    label = data['gt'].to(self.device)
+    
+                    logits = self.g_model(sample)
+                    total_loss = self.pixel_loss(logits, label)
+                    return dict(loss=total_loss)
             ```
     
     - def generator(self, data)

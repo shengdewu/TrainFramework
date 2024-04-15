@@ -1,10 +1,11 @@
 import abc
-from typing import Iterator
+import logging
+from typing import Iterator, Dict, Any, Union
 from yacs.config import CfgNode
 import torch
+from torch import Tensor
 from engine.slover import build_optimizer_with_gradient_clipping, EmptyLRScheduler
 import engine.checkpoint.functional as checkpoint_f
-import logging
 import engine.slover.lr_scheduler as engine_scheduler
 from .import_optimizer import import_optimizer
 from .import_scheduler import import_scheduler
@@ -131,12 +132,12 @@ class BaseModel(abc.ABC):
         return
 
     @abc.abstractmethod
-    def run_step(self, data, *, epoch=None, **kwargs):
+    def run_step(self, data, *, epoch=None, **kwargs) -> Dict[str, Any]:
         """
         :param data: type is dict
         :param epoch:
         :param kwargs: another args
-        :return:
+        :return: 必须包含loss
         """
         raise NotImplemented('the run_step must be implement')
 
@@ -187,18 +188,20 @@ class BaseModel(abc.ABC):
                 self.g_scheduler.step(epoch)
         """
         if self.g_model.training:
-            loss = self.run_step(data=data, epoch=epoch, **kwargs)
+            step_info = self.run_step(data=data, epoch=epoch, **kwargs)
 
             accumulation_epoch = kwargs.get('accumulation_epoch', -1)
 
             if accumulation_epoch > 1:
                 data_epoch = kwargs.get('data_epoch', 0)
-                self.__accumulation_step(loss, epoch, accumulation_epoch, data_epoch)
+                self.__accumulation_step(step_info['loss'], epoch, accumulation_epoch, data_epoch)
             else:
-                self.__normal_step(loss, epoch)
+                self.__normal_step(step_info['loss'], epoch)
 
             lr = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
-            return {'total_loss': loss.detach().item(), 'lr': lr}
+            step_info['loss'] = step_info['loss'].detach().item()
+            step_info['lr'] = lr
+            return step_info
         else:
             return self.generator_imp(data)
 
