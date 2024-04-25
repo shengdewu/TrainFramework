@@ -389,6 +389,7 @@ class RandomAffine:
                 affine_matrix,
                 flags=F.INTER_CV_TYPE[interpolation],
                 dsize=(width, height),
+                borderMode=cv2.BORDER_CONSTANT,
                 borderValue=pad_value)
         results['img_shape'] = (height, width)
 
