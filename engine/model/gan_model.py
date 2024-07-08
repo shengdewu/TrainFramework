@@ -145,6 +145,9 @@ class BaseGanModel(BaseModel, abc.ABC):
         for k, d_schedler in self.d_scheduler.items():
             d_schedler.step(epoch)
 
+        if isinstance(d_model_loss, torch.Tensor):
+            d_model_loss = {self.DEFAULT_DMODEL_NAME: d_model_loss}
+
         for name, item in d_model_loss.items():
             step_info[f'd_model_loss_{name}'] = item.detach().item()
         return step_info
@@ -160,14 +163,16 @@ class BaseGanModel(BaseModel, abc.ABC):
                 self.scheduler.step(epoch)
         """
 
-        loss_dict = self.run_step(data=data, epoch=epoch, **kwargs)
+        if self.g_model.training:
+            loss_dict = self.run_step(data=data, epoch=epoch, **kwargs)
 
-        loss_dict['g_learning_rate'] = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
-        loss_dict['d_learning_rate'] = list()
-        for k, d_schedler in self.d_scheduler.items():
-            loss_dict['d_learning_rate'].append({k: '*'.join([str(lr) for lr in d_schedler.get_last_lr()])})
-
-        return loss_dict
+            loss_dict['g_learning_rate'] = '*'.join([str(lr) for lr in self.g_scheduler.get_last_lr()])
+            loss_dict['d_learning_rate'] = list()
+            for k, d_schedler in self.d_scheduler.items():
+                loss_dict['d_learning_rate'].append({k: '*'.join([str(lr) for lr in d_schedler.get_last_lr()])})
+            return loss_dict
+        else:
+            return self.generator_imp(data)
 
     def enable_train(self):
         self.g_model.train()
@@ -178,7 +183,7 @@ class BaseGanModel(BaseModel, abc.ABC):
     def disable_train(self):
         self.g_model.eval()
         for k, d_model in self.d_model.items():
-            d_model.train()
+            d_model.eval()
         return
 
     def get_addition_state_dict(self):
