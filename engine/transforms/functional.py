@@ -204,7 +204,7 @@ def gamma_transform(img, gamma):
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
         img = cv2.LUT(img, table.astype(np.uint8))
     else:
-        img = np.power(img, gamma)
+        img = (np.power(img, gamma)+0.5).astype(img.dtype)
 
     return img
 
@@ -342,7 +342,13 @@ def adjust_hue(img, factor):
 
     if img.dtype == np.uint8:
         return _adjust_hue_uint8(img, factor)
-
+    elif img.dtype == np.uint16:
+        # cvtColor 文档支持 @param src input image: 8-bit unsigned, 16-bit unsigned ( CV_16UC... ), or single-precision， floating-point.
+        # 但是实际会报错
+        img16 = img.astype(np.float32)
+        img16 = cv2.cvtColor(img16, cv2.COLOR_RGB2HSV)
+        img16[..., 0] = np.mod(img16[..., 0] + factor * 360, 360)
+        return (cv2.cvtColor(img16, cv2.COLOR_HSV2RGB)+0.5).astype(np.uint16)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
