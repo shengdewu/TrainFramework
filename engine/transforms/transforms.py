@@ -85,10 +85,10 @@ class Pad32:
 
     def _pad_box(self, results):
         """
-        :param results:  results['box_fileds'] [x1, y1, x2, y2]
+        :param results:  results['bbox_fields'] [x1, y1, x2, y2]
         :return:
         """
-        for key in results.get('box_fileds', []):
+        for key in results.get('bbox_fields', []):
             bboxes = results[key]
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
             bboxes = bboxes + [pad_left, pad_top, pad_left, pad_top]
@@ -209,13 +209,13 @@ class Resize:
 
     def _resize_box(self, results):
         """
-        :param results:  results['box_fileds'] [x1, y1, x2, y2]
+        :param results:  results['bbox_fields'] [x1, y1, x2, y2]
         :return:
         """
         scale = results['scale']
         scales = [scale[0], scale[1], scale[0], scale[1]]
         height, width = results['img_shape']
-        for key in results.get('box_fileds', []):
+        for key in results.get('bbox_fields', []):
             bboxes = results[key] * scales
             pad_top, pad_bottom, pad_left, pad_right = results.get('pad_offset', (0, 0, 0, 0))  # top, bottom, left, right
             bboxes = bboxes + [pad_left, pad_top, pad_left, pad_top]
