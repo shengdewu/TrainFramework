@@ -460,6 +460,16 @@ def normalize(img: np.ndarray, mean, std):
     img *= stdinv
     return img
 
+def denormalize(img: np.ndarray, mean, std):
+    assert img.ndim == 3 and img.shape[-1] == 3
+    assert img.dtype != np.uint8
+
+    mean = np.reshape(mean, (1, 1, -1)).astype(np.float32)
+    stdinv = np.reshape(std, (1, 1, -1)).astype(np.float32)
+    img *= stdinv
+    img += mean
+    return img
+
 
 def from_float(img, dtype, max_value=None):
     if max_value is None:

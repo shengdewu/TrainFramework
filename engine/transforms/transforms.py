@@ -55,28 +55,31 @@ class Pad32:
 
     def _pad_img(self, results):
         pad_h, pad_w = results['pad_shape']
+        height, width = results['img_shape']
+        if (pad_h, pad_w) == (height, width):
+            return results
+
+        h_offset = pad_h - height
+        w_offset = pad_w - width
+        h_pad_top = h_offset // 2
+        h_pad_bottom = h_offset - h_pad_top
+        w_pad_left = w_offset // 2
+        w_pad_right = w_offset - w_pad_left
+
+        results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
+
         for key in results.get('img_fields', []):
             img = results[key]
 
-            assert results['img_shape'] == img.shape[:-1]
-            height, width = img.shape[0], img.shape[1]
-            if (pad_h, pad_w) == (height, width):
-                continue
+            assert results['img_shape'] == img.shape[:-1] if len(img.shape) == 3 else img.shape
 
             pad_value = 0
             if results.get('pad_value', None) is not None:
                 pad_value = results['pad_value'].get(key, 0)
 
-            h_offset = pad_h - height
-            w_offset = pad_w - width
-            h_pad_top = h_offset // 2
-            h_pad_bottom = h_offset - h_pad_top
-            w_pad_left = w_offset // 2
-            w_pad_right = w_offset - w_pad_left
             img = cv2.copyMakeBorder(img, top=h_pad_top, bottom=h_pad_bottom,
                                      left=w_pad_left, right=w_pad_right,
                                      borderType=cv2.BORDER_CONSTANT, value=pad_value)
-            results['pad_offset'] = (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right)
 
             results[key] = img
 
@@ -366,7 +369,7 @@ class RandomAffine:
             self._affine_img(results, warp_matrix)
             height, width = results['img_shape']
             for key in results.get('bbox_fields', []):
-                results[key] = self._affine_box(results[key], warp_matrix, scaling_ratio, width, height)
+                results[key] = self._affine_box(results[key], warp_matrix, width, height)
             for key in results.get('pts_fields', []):
                 results[key] = self._affine_point(results[key], warp_matrix, width, height)
         return results
@@ -1062,6 +1065,10 @@ class Normalize(BasicColorTransform):
 
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.normalize(img, self.mean, self.std)
+
+    def get_params(self, results) -> Dict[str, Any]:
+        results['img_norm_cfg'] = dict(std=self.std, mean=self.mean)
+        return {}
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('

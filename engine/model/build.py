@@ -23,6 +23,11 @@ def build_network(cfg: dict):
         if k.lower() == 'name':
             arch_name = v
             continue
-        kwargs[k.lower()] = v
+        if isinstance(v, dict):
+            kwargs[k.lower()] = dict()
+            for kk, vv in v.items():
+                kwargs[k.lower()][kk.lower()] = vv
+        else:
+            kwargs[k.lower()] = v
     model = BUILD_NETWORK_REGISTRY.get(arch_name)(**kwargs)
     return model

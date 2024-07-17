@@ -135,6 +135,7 @@ class BaseTrainer:
                                                             num_workers=cfg.DATALOADER.NUM_WORKERS,
                                                             shuffle=True,
                                                             drop_last=False,
+                                                            collate_fn=self.collate_train_fn,
                                                             pin_memory=pin_memory)
 
         test_data_loader = torch.utils.data.DataLoader(valid_dataset,
