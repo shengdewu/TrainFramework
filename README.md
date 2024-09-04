@@ -63,7 +63,7 @@ TrainFramework 是一个简单的以pytorch为基础的训练框架， 里面包
 ###  编译训练引擎  
 
 ```python
-git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
+git clone https://github.com/shengdewu/TrainFramework.git
 
 python3 setup.py bdist_wheel
 
@@ -102,7 +102,7 @@ docker build ./ -f docker/Dockerfile -t dl.nvidia/cuda:11.1-cudnn8-devel-torch.1
 ###  编译训练引擎  
 
 ```python
-git clone https://codeup.aliyun.com/601b69af841cc46b7c49ab5f/ai-lab/TrainFramework.git
+git clone https://github.com/shengdewu/TrainFramework.git
 
 python3 setup.py bdist_wheel
 
