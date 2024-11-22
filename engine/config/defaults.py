@@ -26,6 +26,7 @@ GENERATOR一样
 _C.SOLVER = CfgNode(new_allowed=False)
 _C.SOLVER.GRADIENT_ACCUMULATION_BATCH = -1  # 是否启用梯度累加 > 1 启用
 _C.SOLVER.TRAIN_PER_BATCH = 16  # 当 gradient_accumulation_batch > 1 时，真实的 train_per_batch = train_per_batch // gradient_accumulation_batch
+_C.SOLVER.VAL_PER_BATCH = 8
 _C.SOLVER.TEST_PER_BATCH = 8
 _C.SOLVER.MAX_ITER = 90000
 _C.SOLVER.MAX_KEEP = 20
