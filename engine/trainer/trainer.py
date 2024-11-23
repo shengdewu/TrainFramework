@@ -122,13 +122,13 @@ class BaseTrainer:
 
         val_data_loader = engine_data_loader.create_data_loader(valid_dataset,
                                                                 cfg.SOLVER.VAL_PER_BATCH,
-                                                                cfg.DATALOADER.NUM_WORKERS,
+                                                                num_workers=1,
                                                                 collate_fn=self.collate_valid_fn,
                                                                 pin_memory=pin_memory)
 
         test_data_loader = engine_data_loader.create_data_loader(test_dataset,
                                                                  cfg.SOLVER.TEST_PER_BATCH,
-                                                                 cfg.DATALOADER.NUM_WORKERS,
+                                                                 num_workers=1,
                                                                  collate_fn=self.collate_valid_fn,
                                                                  pin_memory=pin_memory)
 
@@ -155,13 +155,13 @@ class BaseTrainer:
 
         val_data_loader = torch.utils.data.DataLoader(valid_dataset,
                                                       cfg.SOLVER.VAL_PER_BATCH,
-                                                      num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                      num_workers=1,
                                                       collate_fn=self.collate_valid_fn,
                                                       pin_memory=pin_memory)
 
         test_data_loader = torch.utils.data.DataLoader(test_dataset,
                                                        cfg.SOLVER.TEST_PER_BATCH,
-                                                       num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                                       num_workers=1,
                                                        collate_fn=self.collate_valid_fn,
                                                        pin_memory=pin_memory)
         return train_data_loader, val_data_loader, test_data_loader

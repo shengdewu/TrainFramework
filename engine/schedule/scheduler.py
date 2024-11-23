@@ -78,6 +78,8 @@ class BaseScheduler:
                 cfg.TRAINER.PARADIGM.NUM_PER_GPUS = 1
                 if cfg.TRAINER.DEVICE == '' or cfg.TRAINER.DEVICE is None:
                     cfg.TRAINER.DEVICE = 'cuda' if torch.cuda.is_available() and args.num_gpus > 0 else 'cpu'
+                if not torch.cuda.is_available():
+                    cfg.TRAINER.DEVICE = 'cpu'
 
         cfg.freeze()
 
