@@ -210,11 +210,11 @@ class MosaicTransform(BaseMixTransform):
                 color_fields=['img'],
                 ori_shape=ori_img.shape[:2],
                 img_shape=ori_img.shape[:2],
-                bbox_fields=[bbox_field],
-                bbox_cls_fields=[bbox_cls_field]
             )
 
             if bboxes.size > 0:
+                result['bbox_fields'] = [bbox_field]
+                result['bbox_cls_fields'] = [bbox_cls_field]
                 result[bbox_field] = bboxes
                 result[bbox_cls_field] = bboxes_cls
 
