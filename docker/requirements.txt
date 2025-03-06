@@ -19,8 +19,6 @@ scikit-image==0.17.2
 torch==1.10.1+cu102 
 torchvision==0.11.2+cu102 
 torchaudio==0.10.1
-dict2xml-1.7.6
-xmltodict==0.14.2
 
 
 
