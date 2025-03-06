@@ -333,6 +333,24 @@
 
  <br>  
 
+### ***mosaic增强*** 
+---
+#### `MosaicTransform`  
+- 描述
+    执行 mosaic增强，支持1*3， 2*2， 3*3 mosaic
+
+- parameters  
+
+    | name | type | description |
+    |---| --- | --- |
+    | dataset | List | 数据集合，支持增强操作时，会从其中选择 n - 1 个数据 <br> 数据格式 必须是 [img_path, bboxes:np.ndarray, bboxes:list] | 
+    | max_size| int| 支持操作的图片，都会被缩放到 max_size | 
+    | p | float| 执行操作的概率 < 1 | 
+    | n | int | n = 3, 4, 9; 表示支持操作的图片数量 |
+    | border_step| int| 偏移的步长=max_size // border_step|
+
+<br>
+
 # 数据增强的使用  
 
 数据增强的使用是通过配置文件来初始化,可以是1个或多个  
