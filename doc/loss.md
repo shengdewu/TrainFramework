@@ -58,7 +58,7 @@
     ```
 
 ---
-### `LossKeyCompose`  [推荐]
+### `LossKeyCompose`
 - 配置文件定义
     - name 损失函数的名称
     - param 损失函数的参数
@@ -195,6 +195,32 @@
         ```  
 
 <br>  
+
+### `LossKeyCompose2`  [推荐]
+- 简化 `LossKeyCompose`
+- __call__ 的输入必须是dict, key表示每个tensor的name它和loss_func的输入参数名匹配
+- LossKeyCompose2 会自动组装 loss_func的输入
+- 示例  
+
+  ```python
+        loss_cfg = [
+                dict(name='CrossEntropyLoss', 
+                    param=dict(lambda_weight=1.0), 
+                    input_name=['input_tensor1', 'target_tensor1']),
+                dict(name='MSELoss', 
+                    param=dict(lambda_weight=1.0), 
+                    input_name=['input_tensor1', 'target_tensor1']),
+       ]
+
+        loss_func = LossKeyCompose2(loss_cfg)
+
+        fake1 = g_model1(input_data)
+
+        loss1_cfg = dict(input_tensor1=fake1, target_tensor1=target1)
+
+        total_loss = loss_func(loss1_cfg)
+
+  ```
 
 ## 自定义损失函数
 - 必须通过engine.loss.build.LOSS_ARCH_REGISTRY注册  

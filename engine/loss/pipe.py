@@ -219,3 +219,92 @@ class LossKeyCompose:
             format_string += '\n'
         format_string += '\n)'
         return format_string
+
+
+class LossItem:
+    def __init__(self, func: Callable, params: List):
+        self.func = func
+        self.params = params
+        return
+
+    def __call__(self, loss_input: Dict):
+        assert loss_input.keys() == self.params, f'the loss input key {loss_input.keys()} must be == the loss_functions key {self.params}'
+        return self.func(**loss_input)
+
+    def __repr__(self):
+        return '{str(self.func)}'
+
+
+class LossKeyCompose2:
+    LOSS_NAME = 'name'
+    LOSS_PARAM = 'param'
+    LOSS_INPUT_NAME = 'input_name'
+
+    @staticmethod
+    def get_values(item: dict, key: str, must_be: bool = True):
+        if key.lower() in item.keys():
+            return item[key.lower()]
+        if key.upper() in item.keys():
+            return item[key.upper()]
+
+        if must_be:
+            raise KeyError(f'{key.lower()} or {key.upper()} not in {item.keys()}')
+        return ''
+
+    def create_loss_func(self, loss: dict, device=None) -> (Callable, List):
+        arch_name = self.get_values(loss, self.LOSS_NAME)
+        kwargs = dict2lower(self.get_values(loss, self.LOSS_PARAM))
+        input_names = self.get_values(loss, self.LOSS_INPUT_NAME, False)
+        loss_func = build_loss(arch_name, **kwargs)
+        if device in ['cpu', 'cuda']:
+            loss_func = loss_func.to(device)
+        return loss_func, input_names
+
+    def __init__(self, loss_cfgs: List[Dict], device=None):
+        """
+        :param loss_cfgs:
+        loss_cfgs = [
+            dict(name='MSELoss', param=dict(param1=1.0), input_name=['input1', 'input2']),
+            dict(name='VGGLoss', param=dict(param1=1.0), input_name=['input1', 'input2'])
+        ]
+        """
+
+        self.losses: List[LossItem] = list()
+
+        for loss in loss_cfgs:
+            assert isinstance(loss, dict)
+            loss_func, input_names = self.create_loss_func(loss, device)
+            loss_item = LossItem(loss_func, input_names)
+            self.losses.append(loss_item)
+        return
+
+    def __call__(self, losses: dict):
+        """
+        :param losses:
+                {input1: tensor, input2: tensor, input3:tensor}
+        :return:
+        """
+        assert len(losses) == len(self.losses)
+        score = None
+        for loss in self.losses:
+            in_params_name = loss.params
+            in_kwargs = dict()
+            for name in in_params_name:
+                if name not in losses.keys():
+                    raise NotImplemented(f'{name} not in losses {losses.keys()}')
+
+                in_kwargs[name] = losses[name]
+
+            if score is None:
+                score = loss(in_kwargs)
+            else:
+                score += loss(in_kwargs)
+
+        return score
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + '('
+        for loss in self.losses:
+            format_string += f'\n\t{loss}'
+        format_string += '\n)'
+        return format_string
