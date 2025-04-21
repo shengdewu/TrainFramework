@@ -1,4 +1,4 @@
-from .pipe import LossKeyCompose, LossCompose
+from .pipe import *
 from .build import LOSS_ARCH_REGISTRY
 from .ssim_loss import *
 from .torch_loss import *

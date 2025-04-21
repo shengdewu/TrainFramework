@@ -2,6 +2,12 @@ from typing import Dict, List, Tuple, Callable, Union
 from torch import Tensor
 from .build import build_loss
 
+__all__ = [
+    'LossKeyCompose',
+    'LossKeyCompose2',
+    'LossCompose'
+]
+
 
 def dict2lower(item: dict):
     new_item = dict()
