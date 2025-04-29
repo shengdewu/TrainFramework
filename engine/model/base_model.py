@@ -3,7 +3,6 @@ import logging
 from typing import Iterator, Dict, Any, Union
 from yacs.config import CfgNode
 import torch
-from torch import Tensor
 from engine.slover import build_optimizer_with_gradient_clipping, EmptyLRScheduler
 import engine.checkpoint.functional as checkpoint_f
 import engine.slover.lr_scheduler as engine_scheduler

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Tuple, List, Union
+from typing import Any, Dict, Tuple, List, Union, Optional
 import random
 import numpy as np
 import cv2
@@ -120,12 +120,17 @@ class Resize:
     """
     resize 到指定大小 target_size
     Args:
+        target_size: 如果是Tuple则 keep_ratio，is_padding 无效
         interpolation funcional/INTER_CV_TYPE
 
     img_shape pad_offset 相关的都是 h w 形式
     """
 
-    def __init__(self, target_size=0, interpolation='INTER_LINEAR', keep_ratio=True, is_padding=True, clip_border=True):
+    def __init__(self, target_size: Union[int, Tuple] = 0,
+                 interpolation='INTER_LINEAR',
+                 keep_ratio=True,
+                 is_padding=True,
+                 clip_border=True):
         self.target_size = target_size
         self.keep_ratio = keep_ratio
         self.is_padding = is_padding
@@ -150,15 +155,21 @@ class Resize:
 
     def _get_new_size(self, target_size, results):
         height, width = results['img_shape']
-        if self.keep_ratio:
-            scale = float(target_size) / max(height, width)
-            new_h, new_w = int(height * scale + 0.5), int(width * scale + 0.5)
-            scale_w = scale
-            scale_h = scale
+        if isinstance(target_size, Tuple) or isinstance(target_size, List):
+            assert len(target_size) == 2
+            new_h, new_w = target_size
+            scale_w = float(new_w) / width
+            scale_h = float(new_h) / height
         else:
-            scale_w = target_size / width
-            scale_h = target_size / height
-            new_h, new_w = target_size, target_size
+            if self.keep_ratio:
+                scale = float(target_size) / max(height, width)
+                new_h, new_w = int(height * scale + 0.5), int(width * scale + 0.5)
+                scale_w = scale
+                scale_h = scale
+            else:
+                scale_w = target_size / width
+                scale_h = target_size / height
+                new_h, new_w = target_size, target_size
 
         results['img_shape'] = (new_h, new_w)
         results['scale'] = (scale_w, scale_h)
