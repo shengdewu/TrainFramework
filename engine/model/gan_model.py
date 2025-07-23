@@ -213,7 +213,7 @@ class BaseGanModel(BaseModel, abc.ABC):
             checkpoint_f.load_checkpoint_state_dict(self.d_scheduler[k], state_dict['d_scheduler_{}'.format(k)])
         return
 
-    def enable_dirstribute_ddp(self, cfg):
+    def enable_distribute_ddp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
         self.g_model = torch.nn.parallel.DistributedDataParallel(self.g_model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
         new_d_model = dict()

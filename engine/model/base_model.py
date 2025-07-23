@@ -248,7 +248,7 @@ class BaseModel(abc.ABC):
     def sync_batch_norm(self):
         return torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.g_model)
 
-    def enable_dirstribute_ddp(self, cfg):
+    def enable_distribute_ddp(self, cfg):
         logging.getLogger(self.default_log_name).info('launch model by distribute in gpu_id {}'.format(cfg.TRAINER.PARADIGM.GPU_ID))
         model = self.sync_batch_norm()
         self.g_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[cfg.TRAINER.PARADIGM.GPU_ID])
