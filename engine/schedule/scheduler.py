@@ -230,7 +230,7 @@ class BaseScheduler:
         keys = [key.lower() for key in cfg.keys()]
         with tempfile.TemporaryDirectory() as temp_config_dir:
             temp_config_file = tempfile.NamedTemporaryFile(
-                dir=temp_config_dir, suffix='.py')
+                dir=temp_config_dir, suffix='.py', delete=False)
             temp_config_name = os.path.basename(temp_config_file.name)
             shutil.copyfile(file_name, temp_config_file.name)
             temp_module_name = os.path.splitext(temp_config_name)[0]
