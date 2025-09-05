@@ -2,7 +2,7 @@
 
 FROM codercom/code-server:4.103.2-ubuntu
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 USER root
 
@@ -28,26 +28,27 @@ RUN apt-get update -y && apt-get install -y  curl unzip wget git vim htop net-to
     apt-get autoclean && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
 
 #安装python
-ARG PYTHON_VERSION=3.11.6
+ARG PYTHON_MAJOR_VER=3.11
+ARG PYTHON_MINOR_VER=6
+ARG PYTHON_VERSION=${PYTHON_MAJOR_VER}.${PYTHON_MINOR_VER}
 
 COPY Python-${PYTHON_VERSION}.tgz /tmp/
 RUN cd /tmp/ && tar -xvzf Python-${PYTHON_VERSION}.tgz && cd /tmp/Python-${PYTHON_VERSION} \
-    && zsh ./configure --prefix=/usr/local/python${PYTHON_VERSION} --enable-optimizations --with-ensurepip \
-    && make -j4 && make install
-
-ENV PATH="/usr/local/python${PYTHON_VERSION}/bin:$PATH"
-ENV LD_LIBRARY_PATH="/usr/local/python${PYTHON_VERSION}/lib:$LD_LIBRARY_PATH"
+    && ./configure --prefix=/usr/local/python${PYTHON_VERSION} --enable-optimizations --with-ensurepip \
+    && make -j4 && make install && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_MAJOR_VER} /usr/local/bin/pip${PYTHON_MAJOR_VER} && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python${PYTHON_MAJOR_VER}
 
 
 #安装依赖
 # https://mirrors.aliyun.com/pytorch-wheels/cu128 可以替换 https://download.pytorch.org/whl/cu128
-RUN python3 --version && pip3 --version && pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
-    python3 -m pip install --upgrade pip && \
-    pip3 install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+RUN python${PYTHON_MAJOR_VER} --version && pip${PYTHON_MAJOR_VER} --version && pip${PYTHON_MAJOR_VER} config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    python${PYTHON_MAJOR_VER} -m pip install --upgrade pip && \
+    pip${PYTHON_MAJOR_VER} install --no-cache-dir torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
 
 COPY requirements.txt /tmp/requirements.txt
 #分开, 防止更改requirements.txt 重新安装 torch
-RUN pip3 install -r /tmp/requirements.txt && rm -rf /tmp/*
+RUN pip${PYTHON_MAJOR_VER} install --no-cache-dir -r /tmp/requirements.txt && rm -rf /tmp/*
 
 RUN sed -i 's/#Port 22/Port 8822/' /etc/ssh/sshd_config && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
@@ -57,9 +58,6 @@ RUN sed -i 's/#Port 22/Port 8822/' /etc/ssh/sshd_config && \
 COPY run.sh /opt/run.sh
 RUN chmod u+x /opt/run.sh
 
-RUN ln -s /usr/local/python${PYTHON_VERSION}/bin/pip3.11 /usr/local/bin/pip3.11 && \
-    ln -s /usr/local/python${PYTHON_VERSION}/bin/python3.11 /usr/local/bin/python3.11
-
-WORKDIR /home/workspace
+WORKDIR /workspace
 
 ENTRYPOINT ["/opt/run.sh"]
