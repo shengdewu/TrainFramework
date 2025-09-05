@@ -50,14 +50,19 @@ COPY requirements.txt /tmp/requirements.txt
 #分开, 防止更改requirements.txt 重新安装 torch
 RUN pip${PYTHON_MAJOR_VER} install --no-cache-dir -r /tmp/requirements.txt && rm -rf /tmp/*
 
+
+WORKDIR /workspace
+
 RUN sed -i 's/#Port 22/Port 8822/' /etc/ssh/sshd_config && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo 'root:123456' | chpasswd && \
-    cat /etc/ssh/sshd_config
+    cat /etc/ssh/sshd_config && \
+    # ssh 登陆目录
+    sed -i '$a cd /workspace' /root/.bashrc && \
+    cat /root/.bashrc
+
 
 COPY run.sh /opt/run.sh
 RUN chmod u+x /opt/run.sh
-
-WORKDIR /workspace
 
 ENTRYPOINT ["/opt/run.sh"]
