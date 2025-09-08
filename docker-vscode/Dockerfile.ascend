@@ -120,9 +120,6 @@ RUN cd /tmp && git clone https://gitee.com/ascend/vision.git vision_npu && \
     pip${PYTHON_MAJOR_VER} install torchvision_npu-${TORCH_VISION}*.whl
 
 
-#清理缓存
-RUN rm -rf /tmp/ && rm -rf /root/.cache
-
 # 在宿主机执行 id HwHiAiUser,记录gid的直
 # RUN groupadd -g 1000 HwHiAiUser && useradd -g HwHiAiUser -d /home/HwHiAiUser -m HwHiAiUser && echo ok
 
@@ -131,7 +128,10 @@ ENV PATH="${TMP_PATH}"
 ENV LD_LIBRARY_PATH="${ASCEND_LD_PATH}:${TMP_LD_PATH}"
 
 #设置环境变量
-# RUN echo 'source ${ASCEND_BASE}/ascend-toolkit/set_env.sh' >> ~/.bashrc && rm -rf /tmp/ && rm -rf /root/.cache
+RUN echo "source ${ASCEND_BASE}/ascend-toolkit/set_env.sh" >> /root/.bashrc && \
+    echo "export LD_LIBRARY_PATH=${ASCEND_LD_PATH}:${TMP_LD_PATH}" >> /root/.bashrc && \
+    rm -rf /tmp/ && rm -rf /root/.cache
+
 
 WORKDIR /workspace
 
