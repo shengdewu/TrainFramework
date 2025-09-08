@@ -37,7 +37,9 @@ RUN cd /tmp/ && tar -xvzf Python-${PYTHON_VERSION}.tgz && cd /tmp/Python-${PYTHO
     && ./configure --prefix=/usr/local/python${PYTHON_VERSION} --enable-optimizations --with-ensurepip \
     && make -j4 && make install && \
     ln -s /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_MAJOR_VER} /usr/local/bin/pip${PYTHON_MAJOR_VER} && \
-    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python${PYTHON_MAJOR_VER}
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python${PYTHON_MAJOR_VER} && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_MAJOR_VER} /usr/local/bin/pip && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python
 
 
 #安装依赖
