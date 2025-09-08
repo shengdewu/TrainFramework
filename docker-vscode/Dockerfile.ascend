@@ -1,0 +1,149 @@
+FROM codercom/code-server:4.103.2-ubuntu
+
+# ubuntu 20.04.6 LTS (Focal Fossa) aarch64 && python3.8.10
+USER root
+
+#更新源
+RUN sed -i s@http://ports.ubuntu.com/@http://mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list \
+  && apt-get update && apt-get install -y ca-certificates \
+  && sed -i s@http@https@g /etc/apt/sources.list \
+  && apt-get -y update
+
+# 设置时区
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+RUN apt-get install -y tzdata && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone
+
+#安装依赖
+RUN apt-get update -y && apt-get install -y  curl unzip wget git vim htop net-tools openssh-client \
+    openssh-server make openssl build-essential cmake && \
+    apt-get install -y  pciutils libblas-dev gfortran libblas3 \
+       libopenblas-dev dkms udev systemd \
+      libncurses5-dev libgdbm-dev liblzma-dev libz-dev libffi-dev \
+      tk-dev libc6-dev zlib1g zlib1g-dev checkinstall libdb-dev libexpat1-dev \
+      libncursesw5-dev libreadline-dev libsqlite3-dev libssl-dev libtinfo-dev libbz2-dev \
+      libgl1-mesa-glx python3-dev && \
+      apt-get autoclean && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache
+
+#安装python
+ARG PYTHON_MAJOR_VER=3.11
+ARG PYTHON_MINOR_VER=6
+ARG PYTHON_VERSION=${PYTHON_MAJOR_VER}.${PYTHON_MINOR_VER}
+
+COPY Python-$PYTHON_VERSION.tgz /tmp/
+RUN cd /tmp/ && tar -xvzf Python-$PYTHON_VERSION.tgz && cd /tmp/Python-$PYTHON_VERSION \
+    && ./configure --prefix=/usr/local/python$PYTHON_VERSION --enable-optimizations --with-ensurepip \
+    && make -j4 && make install && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_MAJOR_VER} /usr/local/bin/pip${PYTHON_MAJOR_VER} && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python${PYTHON_MAJOR_VER} && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_MAJOR_VER} /usr/local/bin/pip && \
+    ln -s /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_MAJOR_VER} /usr/local/bin/python
+
+
+ARG TMP_PATH=$PATH
+ARG TMP_LD_PATH=$LD_LIBRARY_PATH
+
+ENV PATH="/usr/local/python$PYTHON_VERSION/bin:$PATH"
+ENV LD_LIBRARY_PATH="/usr/local/python$PYTHON_VERSION/lib:$LD_LIBRARY_PATH"
+
+RUN python${PYTHON_MAJOR_VER} --version && pip${PYTHON_MAJOR_VER} --version && pip${PYTHON_MAJOR_VER} config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    python${PYTHON_MAJOR_VER} -m pip install --upgrade pip
+
+
+# ASCEND 环境
+ARG ASCEND_BASE=/usr/local/Ascend
+ARG CANN_VERSION=8.1.RC1
+
+ARG CANN_PKG=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
+COPY ${CANN_PKG} /tmp/
+RUN cd /tmp && chmod +x $CANN_PKG && \
+    ./$CANN_PKG --quiet --install --install-path=$ASCEND_BASE --install-for-all
+
+ARG KERNEL_PKG=Ascend-cann-kernels-910b_${CANN_VERSION}_linux-aarch64.run
+COPY ${KERNEL_PKG} /tmp/
+RUN cd /tmp && chmod +x $KERNEL_PKG && \
+    ./$KERNEL_PKG --quiet --install --install-path=$ASCEND_BASE --install-for-all
+
+RUN pip${PYTHON_MAJOR_VER} install attrs && \
+    pip${PYTHON_MAJOR_VER} install numpy==1.26.4 && \
+    pip${PYTHON_MAJOR_VER} install decorator && \
+    pip${PYTHON_MAJOR_VER} install sympy && \
+    pip${PYTHON_MAJOR_VER} install cffi && \
+    pip${PYTHON_MAJOR_VER} install pyyaml && \
+    pip${PYTHON_MAJOR_VER} install pathlib2 && \
+    pip${PYTHON_MAJOR_VER} install psutil && \
+    pip${PYTHON_MAJOR_VER} install protobuf==3.20 && \
+    pip${PYTHON_MAJOR_VER} install scipy && \
+    pip${PYTHON_MAJOR_VER} install requests && \
+    pip${PYTHON_MAJOR_VER} install absl-py
+
+
+#安装pytorch, torch_npu, torchvision之前必须先 设置环境变量
+ENV ASCEND_LD_PATH="${ASCEND_BASE}/driver/lib64:${ASCEND_BASE}/driver/lib64/common:${ASCEND_BASE}/driver/lib64/driver:${ASCEND_BASE}/driver/tools/hccn_tool:${ASCEND_BASE}/ascend-toolkit/latest/aarch64-linux/lib64:${ASCEND_BASE}/ascend-toolkit/latest/aarch64-linux/devlib"
+ENV LD_LIBRARY_PATH="${ASCEND_LD_PATH}:$LD_LIBRARY_PATH"
+
+
+# 安装pytorch, torch_npu, torchvision
+# CANN版本必须是8.1.RC1
+# 下载软件包
+# wget https://download.pytorch.org/whl/cpu/torch-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+# # 安装命令
+# pip3 install torch-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+# # 下载插件包
+# wget https://gitee.com/ascend/pytorch/releases/download/v7.0.0-pytorch2.5.1/torch_npu-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+# # 安装命令
+# pip3 install torch_npu-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+# pip3 install torch_npu==2.5.1 可以自动下载 torch_npu-2.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+# pip3 install torch==2.5.1     可以自动下载 torch-2.5.1-cp311-cp311-manylinux_aarch64.manylinux2014_aarch64.whl版本不匹配(阿里云)
+
+ARG TORCH_VERSION=2.5.1
+ARG TORCH_VISION=0.20.1
+
+RUN pip${PYTHON_MAJOR_VER} install --no-cache-dir torch==$TORCH_VERSION && pip${PYTHON_MAJOR_VER} install torch_npu==$TORCH_VERSION.post1 && pip${PYTHON_MAJOR_VER} install torchvision==$TORCH_VISION
+
+# 载Torchvision Adapter代码，进入插件根目录 v0.16.0-6.0.0 对于2.1.0
+#下载Torchvision Adapter代码，进入插件根目录
+# CANN torch torch_npu torchvisition torchvisition_npu 的版本可以从 https://gitee.com/ascend/vision.git 这里查看
+RUN cd /tmp && git clone https://gitee.com/ascend/vision.git vision_npu && \
+    cd vision_npu && \
+    pip${PYTHON_MAJOR_VER} install setuptools wheel &&\
+    git checkout v0.20.1-7.1.0 && \
+    sed -i 's/opencv-python/opencv-python==4.8.0.74/g' requirement.txt && \
+    sed -i 's/av/av==14.2.0/g' requirement.txt && \
+    sed -i 's/numpy//g' requirement.txt && \
+    pip${PYTHON_MAJOR_VER} install -r requirement.txt && \
+    bash -c "source ${ASCEND_BASE}/ascend-toolkit/set_env.sh"  &&\
+    python3 setup.py bdist_wheel && \
+    cd dist && \
+    pip${PYTHON_MAJOR_VER} install torchvision_npu-${TORCH_VISION}*.whl
+
+
+#清理缓存
+RUN rm -rf /tmp/ && rm -rf /root/.cache
+
+# 在宿主机执行 id HwHiAiUser,记录gid的直
+# RUN groupadd -g 1000 HwHiAiUser && useradd -g HwHiAiUser -d /home/HwHiAiUser -m HwHiAiUser && echo ok
+
+# 还原环境变量
+ENV PATH="${TMP_PATH}"
+ENV LD_LIBRARY_PATH="${ASCEND_LD_PATH}:${TMP_LD_PATH}"
+
+#设置环境变量
+# RUN echo 'source ${ASCEND_BASE}/ascend-toolkit/set_env.sh' >> ~/.bashrc && rm -rf /tmp/ && rm -rf /root/.cache
+
+WORKDIR /workspace
+
+RUN sed -i 's/#Port 22/Port 8822/' /etc/ssh/sshd_config && \
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+    echo 'root:123456' | chpasswd && \
+    cat /etc/ssh/sshd_config && \
+    # ssh 登陆目录
+    sed -i '$a cd /workspace' /root/.bashrc && \
+    cat /root/.bashrc
+
+COPY run.sh /opt/run.sh
+RUN chmod u+x /opt/run.sh
+
+ENTRYPOINT ["/opt/run.sh"]
