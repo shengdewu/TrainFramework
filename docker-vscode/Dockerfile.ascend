@@ -143,6 +143,9 @@ RUN sed -i 's/#Port 22/Port 8822/' /etc/ssh/sshd_config && \
     sed -i '$a cd /workspace' /root/.bashrc && \
     cat /root/.bashrc
 
+#声明ssh和vscode的端口
+EXPOSE 8822 8080
+
 COPY run.sh /opt/run.sh
 RUN chmod u+x /opt/run.sh
 
