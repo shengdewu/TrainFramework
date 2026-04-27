@@ -39,3 +39,9 @@ sktime==0.38.1
 scikit-learn==1.6.1
 scipy==1.15.3
 
+# 大模型
+transformers==4.57.1
+peft==0.18.1
+accelerate==1.13.0
+datasets==4.8.4
+bitsandbytes==0.49.2
