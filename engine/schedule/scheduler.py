@@ -92,7 +92,18 @@ class BaseScheduler:
             path = os.path.join(cfg.OUTPUT_DIR, "config.yaml")
 
             with PathManager.open(path, "w") as f:
-                f.write(cfg.dump())
+                """
+                保存的yaml文件里有 &id003、*id003、&id005、*id005
+                不是报错！不是错误！不是 bug！
+                这是 PyYAML 自动生成的锚点（Anchor & Alias）
+                作用： YAML 自动把重复的内容变成引用，让文件更小。
+                    &id005 = 给这段数据起个名字（定义锚点）
+                    *id005 = 直接引用上面那段一模一样的数据（复用）
+                """
+                yaml.SafeDumper.ignore_aliases = lambda *args: True # 关闭自动生成的锚点
+                f.write(cfg.dump(sort_keys=False,
+                                 default_flow_style=False,
+                                 allow_unicode=True))
 
         self.lunch_func(cfg, args)
         return
