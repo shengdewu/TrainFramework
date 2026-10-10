@@ -71,11 +71,14 @@ class LossContainer:
         if isinstance(loss_input, Dict):
             score = None
             for func, param in self.funcs:
-                assert list(loss_input.keys()) == param, f'the loss input key {loss_input.keys()} must be == the loss_functions key {param}'
+                assert set(param).issubset(set(loss_input.keys())), f'the loss input key {loss_input.keys()} must be contain the loss_functions key {param}'
+                l_input = dict()
+                for key in param:
+                    l_input[key] = loss_input[key]
                 if score is None:
-                    score = func(**loss_input)
+                    score = func(**l_input)
                 else:
-                    score += func(**loss_input)
+                    score += func(**l_input)
             return score
         elif isinstance(loss_input, Tuple) or isinstance(loss_input, List):
             score = None

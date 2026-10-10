@@ -1,3 +1,4 @@
+from typing import Optional
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
@@ -26,7 +27,13 @@ class GeneralizedCELoss(nn.Module):
         self.apply_sigmoid = apply_sigmoid
         return
 
-    def forward(self, predict, target):
+    def forward(self, predict, target, mask: Optional[Tensor] = None):
+        """
+        :param predict: b, c, h, w
+        :param target: b, c, h, w, or b, h, w
+        :param mask: 损失函数的有效区域 B H W
+        :return:
+        """
         if target.dim() == 4 and target.shape[1] == 1:  # if target tensor is in class indexes format.
             target = target[:, 0, :, :]
         elif target.dim() != 3:
@@ -36,17 +43,18 @@ class GeneralizedCELoss(nn.Module):
             )
 
         if self.apply_sigmoid:
-            loss = self.binary_cross_entropy(predict, target)
+            loss = self.binary_cross_entropy(predict, target, mask)
         else:
-            loss = self.cross_entropy(predict, target)
+            loss = self.cross_entropy(predict, target, mask)
         return loss * self.lambda_weight
 
-    def cross_entropy(self, pred, label):
+    def cross_entropy(self, pred, label, mask: Optional[Tensor] = None):
         """cross_entropy. The wrapper function for :func:`F.cross_entropy`
 
         Args:
             pred (torch.Tensor): The prediction with shape (N, 1).
             label (torch.Tensor): The learning label of the prediction.
+            mask (Tensor, optional): 损失函数的有效区域 B H W
         """
         loss = F.cross_entropy(
             pred,
@@ -54,15 +62,19 @@ class GeneralizedCELoss(nn.Module):
             reduction='none',
             ignore_index=self.ignore_index)
 
+        if mask is not None:
+            loss = mask * loss
+
         return self.apply_reduce(loss)
 
-    def binary_cross_entropy(self, pred, label):
+    def binary_cross_entropy(self, pred, label, mask: Optional[Tensor] = None):
         """Calculate the binary CrossEntropy loss.
 
         Args:
             pred (torch.Tensor): The prediction with shape (N, 1).
             label (torch.Tensor): The learning label of the prediction.
                 Note: In bce loss, label < 0 is invalid.
+            mask (Tensor, optional): 损失函数的有效区域 B H W
         Returns:
             torch.Tensor: The calculated loss
         """
@@ -89,6 +101,10 @@ class GeneralizedCELoss(nn.Module):
             valid_mask = ((label >= 0) & (label != self.ignore_index)).float()
 
         loss = F.binary_cross_entropy_with_logits(pred, label.float(), reduction='none')
+
+        if mask is not None:
+            loss = mask * loss
+
         # do the reduction for the weighted loss
         return self.apply_reduce(loss * valid_mask)
 

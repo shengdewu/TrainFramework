@@ -1,4 +1,6 @@
+from typing import Optional
 import torch
+from torch import Tensor
 import torch.nn.functional as F
 from .function.ssim import SSIM
 from .build import LOSS_ARCH_REGISTRY
@@ -20,10 +22,11 @@ class SSIMLoss(torch.nn.Module):
         self.ssim_op = SSIM()
         return
 
-    def forward(self, predict, target):
+    def forward(self, predict, target, mask: Optional[Tensor] = None):
         """
         :param predict: b, c, h, w
         :param target: b, c, h, w, or b, h, w
+        :param mask: 损失函数的有效区域 B H W
         :return:
         """
         if self.apply_sigmoid:
@@ -57,12 +60,18 @@ class SSIMLoss(torch.nn.Module):
             )
 
         if self.ignore_index is not None:
-            if target.size() != predict.size():
+            if mask is not None:
+                assert mask.size() == target.size()
+                new_target = torch.where(mask == 0, torch.tensor(self.ignore_index, dtype=target.dtype), target)
+            else:
+                new_target = target
+
+            if new_target.size() != predict.size():
                 # target N H W
-                valid_mask = target.ne(self.ignore_index).unsqueeze(1).expand_as(predict)
+                valid_mask = new_target.ne(self.ignore_index).unsqueeze(1).expand_as(predict)
             else:
                 # target H 1 H W
-                valid_mask = target.ne(self.ignore_index).expand_as(predict)
+                valid_mask = new_target.ne(self.ignore_index).expand_as(predict)
             # predict *= valid_mask 不要使用， 因为 one of the variables needed for gradient computation has been modified by an inplace operation
             predict = predict * valid_mask
             labels_one_hot = labels_one_hot * valid_mask
